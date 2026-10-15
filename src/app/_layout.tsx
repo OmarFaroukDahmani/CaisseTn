@@ -43,6 +43,17 @@ function RootLayoutNav() {
           }}
         />
         <Tabs.Screen
+          name="pos"
+          options={{
+            title: t('pos_register'),
+            tabBarLabel: t('pos_register'),
+            headerTitle: t('pos_register'),
+            tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+              <Ionicons name={focused ? 'cart' : 'cart-outline'} size={24} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
           name="products"
           options={{
             title: t('products'),
@@ -50,6 +61,28 @@ function RootLayoutNav() {
             headerTitle: t('product_inventory'),
             tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
               <Ionicons name={focused ? 'list' : 'list-outline'} size={24} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="inventory"
+          options={{
+            title: t('inventory'),
+            tabBarLabel: t('inventory'),
+            headerTitle: t('inventory'),
+            tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+              <Ionicons name={focused ? 'cube' : 'cube-outline'} size={24} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="analytics"
+          options={{
+            title: t('analytics'),
+            tabBarLabel: t('analytics'),
+            headerTitle: t('z_report'),
+            tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+              <Ionicons name={focused ? 'bar-chart' : 'bar-chart-outline'} size={24} color={color} />
             ),
           }}
         />

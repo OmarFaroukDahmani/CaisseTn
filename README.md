@@ -25,6 +25,12 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+## POS workflows
+
+The POS, ingredient inventory, and analytics tabs use the local SQLite database initialized at app startup. Existing products can be sold from the POS once a shift is opened with a starting cash float. Checkout supports cash, card, mobile, delivery-app, and split payments; cash payouts and safe drops are recorded against the shift.
+
+Use the Ingredients tab to maintain purchase-box costs, unit counts, current stock, low-stock thresholds, and product recipes. Completed orders deduct recipe quantities in the same database transaction as the order and payment records. The Z-Report tab summarizes a selected date and can share CSV or PDF exports. Set an order tax percentage at checkout when applicable; the initial rate is 0%.
+
 ## Get a fresh project
 
 When you're ready, run:

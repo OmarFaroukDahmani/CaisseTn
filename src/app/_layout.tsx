@@ -79,32 +79,26 @@ function RootLayoutNav() {
           name="analytics"
           options={{
             title: t('analytics'),
-            tabBarLabel: t('analytics'),
             headerTitle: t('z_report'),
-            tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-              <Ionicons name={focused ? 'bar-chart' : 'bar-chart-outline'} size={24} color={color} />
-            ),
+            href: null,
           }}
         />
         <Tabs.Screen
           name="history"
           options={{
             title: t('history'),
-            tabBarLabel: t('history'),
             headerTitle: t('closed_registers'),
-            tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-              <Ionicons name={focused ? 'time' : 'time-outline'} size={24} color={color} />
-            ),
+            href: null,
           }}
         />
         <Tabs.Screen
           name="settings"
           options={{
-            title: t('settings'),
-            tabBarLabel: t('settings'),
-            headerTitle: t('settings_cloud'),
+            title: t('profile'),
+            tabBarLabel: t('profile'),
+            headerTitle: t('profile'),
             tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-              <Ionicons name={focused ? 'settings' : 'settings-outline'} size={24} color={color} />
+              <Ionicons name={focused ? 'person-circle' : 'person-circle-outline'} size={24} color={color} />
             ),
           }}
         />

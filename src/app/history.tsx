@@ -14,6 +14,7 @@ import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 import {
   getRegisterHistory,
   getRegisterDetails,
@@ -319,7 +320,10 @@ export default function HistoryScreen() {
 
     try {
       const { uri } = await Print.printToFileAsync({ html: htmlContent });
-      await Sharing.shareAsync(uri);
+      if (!FileSystem.documentDirectory) throw new Error('Document storage is not available.');
+      const shareUri = `${FileSystem.documentDirectory}register-${Date.now()}.pdf`;
+      await FileSystem.copyAsync({ from: uri, to: shareUri });
+      await Sharing.shareAsync(shareUri, { UTI: '.pdf', mimeType: 'application/pdf' });
     } catch (error) {
       console.error('Error generating or sharing PDF:', error);
       Alert.alert('PDF Generation Failed', 'Could not build or share the PDF report.');

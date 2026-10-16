@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,34 +8,46 @@ import {
   Alert,
   useColorScheme,
   ScrollView,
-  Switch,
+  Image,
+  Linking,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Ionicons } from '@expo/vector-icons';
-import { getSetting, setSetting, deleteSetting, getRegisterHistory, getRegisterDetails } from '../services/db';
+import { getSetting, setSetting, getRegisterHistory, getRegisterDetails } from '../services/db';
 import {
   isGoogleConnected,
   getGoogleUser,
   disconnectGoogle,
   syncRegisterToGoogle,
 } from '../services/googleSheets';
-import { useLanguage, Language } from '../constants/translations';
+import { getCurrency, useLanguage, Language } from '../constants/translations';
 
 // Complete authentication sessions on web
 WebBrowser.maybeCompleteAuthSession();
 
-export default function SettingsScreen() {
+export default function ProfileScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const { t, language, setLanguage } = useLanguage();
+  const { t, language, setLanguage, isRTL } = useLanguage();
+  const router = useRouter();
 
-  const [connected, setConnected] = useState(false);
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
-  const [spreadsheetId, setSpreadsheetId] = useState('');
+  const [connected, setConnected] = useState(isGoogleConnected);
+  const [user, setUser] = useState(getGoogleUser);
+  const [spreadsheetId, setSpreadsheetId] = useState(() => getSetting('google_spreadsheet_id') || 'Not created yet');
+  const [restaurantName, setRestaurantName] = useState(() => getSetting('restaurant_name') || '');
+  const [restaurantAddress, setRestaurantAddress] = useState(() => getSetting('restaurant_address') || '');
+  const [restaurantPhone, setRestaurantPhone] = useState(() => getSetting('restaurant_phone') || '');
+  const [currencySymbol, setCurrencySymbol] = useState(() => getSetting('currency_symbol') || getCurrency(language));
+  const [restaurantLogoUri, setRestaurantLogoUri] = useState<string | null>(() => getSetting('restaurant_logo_uri'));
+  const [settingsOffset, setSettingsOffset] = useState<number | null>(null);
+  const profileScrollRef = React.useRef<ScrollView>(null);
   
   // Custom Client IDs for self-hosting (optional for users)
-  const [customWebClientId, setCustomWebClientId] = useState('');
+  const [customWebClientId, setCustomWebClientId] = useState(() => getSetting('custom_web_client_id') || '');
   const [manualTokenInput, setManualTokenInput] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -50,27 +62,14 @@ export default function SettingsScreen() {
     ],
   });
 
-  useEffect(() => {
-    refreshSyncStatus();
-    const storedWebId = getSetting('custom_web_client_id') || '';
-    setCustomWebClientId(storedWebId);
-  }, []);
-
-  useEffect(() => {
-    if (response?.type === 'success' && response.authentication?.accessToken) {
-      const token = response.authentication.accessToken;
-      handleGoogleLoginSuccess(token);
-    }
-  }, [response]);
-
-  const refreshSyncStatus = () => {
+  const refreshSyncStatus = useCallback(() => {
     const isConn = isGoogleConnected();
     setConnected(isConn);
     setUser(getGoogleUser());
     setSpreadsheetId(getSetting('google_spreadsheet_id') || 'Not created yet');
-  };
+  }, []);
 
-  const handleGoogleLoginSuccess = async (accessToken: string) => {
+  const handleGoogleLoginSuccess = useCallback(async (accessToken: string) => {
     try {
       setSetting('google_access_token', accessToken);
       
@@ -94,7 +93,13 @@ export default function SettingsScreen() {
       console.error('Error fetching Google user details:', error);
       Alert.alert('Sync Error', 'Connected to Google, but failed to retrieve user details.');
     }
-  };
+  }, [refreshSyncStatus]);
+
+  useEffect(() => {
+    if (response?.type === 'success' && response.authentication?.accessToken) {
+      void handleGoogleLoginSuccess(response.authentication.accessToken);
+    }
+  }, [response, handleGoogleLoginSuccess]);
 
   const handleManualTokenSubmit = () => {
     if (!manualTokenInput.trim()) {
@@ -180,10 +185,189 @@ export default function SettingsScreen() {
     }
   };
 
+  const saveRestaurantProfile = () => {
+    try {
+      setSetting('restaurant_name', restaurantName.trim());
+      setSetting('restaurant_address', restaurantAddress.trim());
+      setSetting('restaurant_phone', restaurantPhone.trim());
+      setSetting('currency_symbol', currencySymbol.trim());
+      Alert.alert(t('saved'), t('profile_saved'));
+    } catch (error) {
+      console.error('Could not save restaurant profile:', error);
+      Alert.alert(t('db_error'), String(error));
+    }
+  };
+
+  const showPermissionRationale = () => new Promise<boolean>((resolve) => {
+    Alert.alert(t('logo_permission_title'), t('logo_permission_message'), [
+      { text: t('cancel'), style: 'cancel', onPress: () => resolve(false) },
+      { text: t('continue'), onPress: () => resolve(true) },
+    ]);
+  });
+
+  const chooseRestaurantImage = async (source: 'camera' | 'gallery') => {
+    if (!(await showPermissionRationale())) return;
+
+    try {
+      let permission = source === 'camera'
+        ? await ImagePicker.getCameraPermissionsAsync()
+        : await ImagePicker.getMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        permission = source === 'camera'
+          ? await ImagePicker.requestCameraPermissionsAsync()
+          : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      }
+
+      if (!permission.granted) {
+        Alert.alert(t('permission_denied_title'), t('permission_denied_message'), [
+          { text: t('cancel'), style: 'cancel' },
+          {
+            text: t('open_settings'),
+            onPress: () => {
+              void Linking.openSettings().catch((error) => {
+                console.error('Could not open device settings:', error);
+                Alert.alert(t('permission_denied_title'), String(error));
+              });
+            },
+          },
+        ]);
+        return;
+      }
+
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.85 })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.85 });
+      const asset = result.assets?.[0];
+      if (result.canceled || !asset) return;
+      if (!FileSystem.documentDirectory) throw new Error('Document storage is not available.');
+
+      const suggestedExtension = asset.fileName?.split('.').pop() || asset.uri.split('.').pop()?.split('?')[0];
+      const extension = suggestedExtension && /^[a-zA-Z0-9]+$/.test(suggestedExtension)
+        ? suggestedExtension
+        : 'jpg';
+      const destination = `${FileSystem.documentDirectory}restaurant-branding-${Date.now()}.${extension}`;
+      await FileSystem.copyAsync({ from: asset.uri, to: destination });
+      setSetting('restaurant_logo_uri', destination);
+      setRestaurantLogoUri(destination);
+    } catch (error) {
+      console.error('Could not select restaurant image:', error);
+      Alert.alert(t('db_error'), String(error));
+    }
+  };
+
+  const showImageSourceOptions = () => {
+    Alert.alert(t('restaurant_image'), t('logo_permission_message'), [
+      { text: t('take_photo'), onPress: () => { void chooseRestaurantImage('camera'); } },
+      { text: t('choose_gallery'), onPress: () => { void chooseRestaurantImage('gallery'); } },
+      { text: t('cancel'), style: 'cancel' },
+    ]);
+  };
+
+  const openAppSettings = () => {
+    if (settingsOffset !== null) {
+      profileScrollRef.current?.scrollTo({ y: settingsOffset, animated: true });
+    }
+  };
+
   return (
-    <ScrollView style={[styles.container, isDark ? styles.bgDark : styles.bgLight]}>
-      {/* Language Section */}
+    <ScrollView ref={profileScrollRef} style={[styles.container, isDark ? styles.bgDark : styles.bgLight]}>
+      <TouchableOpacity
+        style={styles.brandCover}
+        onPress={showImageSourceOptions}
+        accessibilityRole="button"
+        accessibilityLabel={t('restaurant_image')}
+      >
+        {restaurantLogoUri ? (
+          <Image source={{ uri: restaurantLogoUri }} style={styles.brandCoverImage} />
+        ) : (
+          <Ionicons name="restaurant-outline" size={48} color="#fff" />
+        )}
+        <View style={styles.brandCoverOverlay}>
+          <Text style={styles.brandCoverTitle}>{restaurantName || t('profile')}</Text>
+          <View style={styles.changeImageLabel}>
+            <Ionicons name="camera-outline" size={16} color="#fff" />
+            <Text style={styles.changeImageText}>{t('change_restaurant_image')}</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+
       <View style={styles.sectionHeader}>
+        <Ionicons name="business-outline" size={20} color={isDark ? '#38bdf8' : '#0284c7'} />
+        <Text style={[styles.sectionTitle, isDark ? styles.textDark : styles.textLight]}>{t('restaurant_profile')}</Text>
+      </View>
+      <View style={[styles.card, isDark ? styles.cardDark : styles.cardLight]}>
+        <Text style={[styles.profileFieldLabel, isDark ? styles.textDark : styles.textLight]}>{t('restaurant_name')}</Text>
+        <TextInput
+          value={restaurantName}
+          onChangeText={setRestaurantName}
+          placeholder={t('restaurant_name')}
+          placeholderTextColor="#888"
+          style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
+        />
+        <Text style={[styles.profileFieldLabel, isDark ? styles.textDark : styles.textLight]}>{t('restaurant_address')}</Text>
+        <TextInput
+          value={restaurantAddress}
+          onChangeText={setRestaurantAddress}
+          placeholder={t('restaurant_address')}
+          placeholderTextColor="#888"
+          style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
+        />
+        <Text style={[styles.profileFieldLabel, isDark ? styles.textDark : styles.textLight]}>{t('restaurant_phone')}</Text>
+        <TextInput
+          value={restaurantPhone}
+          onChangeText={setRestaurantPhone}
+          placeholder={t('restaurant_phone')}
+          placeholderTextColor="#888"
+          keyboardType="phone-pad"
+          style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
+        />
+        <Text style={[styles.profileFieldLabel, isDark ? styles.textDark : styles.textLight]}>{t('currency_symbol')}</Text>
+        <TextInput
+          value={currencySymbol}
+          onChangeText={setCurrencySymbol}
+          placeholder="TND"
+          placeholderTextColor="#888"
+          style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
+        />
+        <TouchableOpacity style={styles.saveBtn} onPress={saveRestaurantProfile}>
+          <Text style={styles.saveBtnText}>{t('save_profile')}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.sectionHeader}>
+        <Ionicons name="grid-outline" size={20} color={isDark ? '#38bdf8' : '#0284c7'} />
+        <Text style={[styles.sectionTitle, isDark ? styles.textDark : styles.textLight]}>{t('quick_access')}</Text>
+      </View>
+      <View style={[styles.menuCard, isDark ? styles.cardDark : styles.cardLight]}>
+        <TouchableOpacity style={styles.menuRow} onPress={() => router.push('/analytics')}>
+          <Ionicons name="bar-chart-outline" size={22} color="#0284c7" />
+          <View style={styles.menuTextColumn}>
+            <Text style={[styles.menuLabel, isDark ? styles.textDark : styles.textLight]}>{t('analytics_reports')}</Text>
+            <Text style={styles.menuDescription}>{t('analytics_reports_desc')}</Text>
+          </View>
+          <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color="#94a3b8" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.menuRow} onPress={() => router.push('/history')}>
+          <Ionicons name="time-outline" size={22} color="#0284c7" />
+          <View style={styles.menuTextColumn}>
+            <Text style={[styles.menuLabel, isDark ? styles.textDark : styles.textLight]}>{t('sales_shift_history')}</Text>
+            <Text style={styles.menuDescription}>{t('sales_shift_history_desc')}</Text>
+          </View>
+          <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color="#94a3b8" />
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.menuRow, styles.menuRowLast]} onPress={openAppSettings}>
+          <Ionicons name="settings-outline" size={22} color="#0284c7" />
+          <View style={styles.menuTextColumn}>
+            <Text style={[styles.menuLabel, isDark ? styles.textDark : styles.textLight]}>{t('app_settings')}</Text>
+            <Text style={styles.menuDescription}>{t('app_settings_desc')}</Text>
+          </View>
+          <Ionicons name="chevron-down" size={18} color="#94a3b8" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Language Section */}
+      <View style={styles.sectionHeader} onLayout={(event) => setSettingsOffset(event.nativeEvent.layout.y)}>
         <Ionicons name="language-outline" size={20} color={isDark ? '#38bdf8' : '#0284c7'} />
         <Text style={[styles.sectionTitle, isDark ? styles.textDark : styles.textLight]}>{t('language')}</Text>
       </View>
@@ -380,6 +564,56 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  brandCover: {
+    height: 176,
+    marginBottom: 4,
+    backgroundColor: '#0369a1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  brandCoverImage: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  brandCoverOverlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.42)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  brandCoverTitle: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  changeImageLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  changeImageText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
   bgLight: {
     backgroundColor: '#f8fafc',
   },
@@ -432,6 +666,43 @@ const styles = StyleSheet.create({
     backgroundColor: '#1e293b',
     borderColor: '#334155',
     borderWidth: 1,
+  },
+  profileFieldLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  menuCard: {
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  menuRow: {
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#94a3b8',
+  },
+  menuRowLast: {
+    borderBottomWidth: 0,
+  },
+  menuLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  menuTextColumn: {
+    flex: 1,
+    paddingVertical: 8,
+  },
+  menuDescription: {
+    color: '#64748b',
+    fontSize: 12,
+    marginTop: 2,
   },
   disconnectedContainer: {
     alignItems: 'center',

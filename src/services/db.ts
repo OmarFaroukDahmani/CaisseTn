@@ -3,6 +3,7 @@ import * as SQLite from 'expo-sqlite';
 // Open the database synchronously
 const DB_NAME = 'hsabi.db';
 let db: SQLite.SQLiteDatabase;
+let databaseInitialized = false;
 
 export interface Product {
   id: number;
@@ -105,8 +106,10 @@ export interface ZReport {
  * Initialize database tables
  */
 export function initDatabase(): void {
+  if (databaseInitialized) return;
+
   try {
-    db = SQLite.openDatabaseSync(DB_NAME);
+    db ??= SQLite.openDatabaseSync(DB_NAME);
     
     // Enable foreign keys
     db.execSync('PRAGMA foreign_keys = ON;');
@@ -124,13 +127,9 @@ export function initDatabase(): void {
       );
     `);
 
-    // Migration: add stack columns if missing (for existing databases)
-    try {
-      db.execSync('ALTER TABLE products ADD COLUMN stack_price REAL DEFAULT 0;');
-    } catch {}
-    try {
-      db.execSync('ALTER TABLE products ADD COLUMN stack_quantity INTEGER DEFAULT 1;');
-    } catch {}
+    // Migrate existing product tables without reopening the database handle.
+    addColumnIfMissing('products', 'stack_price', 'REAL DEFAULT 0');
+    addColumnIfMissing('products', 'stack_quantity', 'INTEGER DEFAULT 1');
     addColumnIfMissing('products', 'cost_per_box', 'REAL NOT NULL DEFAULT 0');
     addColumnIfMissing('products', 'units_per_box', 'INTEGER NOT NULL DEFAULT 1');
     addColumnIfMissing('products', 'unit_cost', 'REAL NOT NULL DEFAULT 0');
@@ -252,16 +251,19 @@ export function initDatabase(): void {
       );
     `);
 
+    databaseInitialized = true;
     console.log('Database initialized successfully.');
   } catch (error) {
     console.error('Failed to initialize database:', error);
+    throw error;
   }
 }
 
 function addColumnIfMissing(table: string, column: string, definition: string): void {
-  const columns = getDB().getAllSync<{ name: string }>(`PRAGMA table_info(${table});`);
+  if (!db) throw new Error('Database must be opened before running migrations.');
+  const columns = db.getAllSync<{ name: string }>(`PRAGMA table_info(${table});`);
   if (!columns.some((item) => item.name === column)) {
-    getDB().execSync(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition};`);
+    db.execSync(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition};`);
   }
 }
 
@@ -270,8 +272,9 @@ function addColumnIfMissing(table: string, column: string, definition: string): 
  */
 function getDB(): SQLite.SQLiteDatabase {
   if (!db) {
-    db = SQLite.openDatabaseSync(DB_NAME);
+    initDatabase();
   }
+  if (!databaseInitialized) initDatabase();
   return db;
 }
 

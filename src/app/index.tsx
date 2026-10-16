@@ -17,7 +17,7 @@ import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { getContentUriAsync } from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useLanguage, getCurrency } from '../constants/translations';
 import {
   getActiveRegisterForDate,
@@ -349,14 +349,9 @@ export default function DashboardScreen() {
 
     try {
       const printResult = await Print.printToFileAsync({ html: htmlContent });
-      
-      let shareUri: string;
-      try {
-        shareUri = await getContentUriAsync(printResult.uri);
-      } catch {
-        shareUri = printResult.uri;
-      }
-      
+      if (!FileSystem.documentDirectory) throw new Error('Document storage is not available.');
+      const shareUri = `${FileSystem.documentDirectory}daily-reconciliation-${Date.now()}.pdf`;
+      await FileSystem.copyAsync({ from: printResult.uri, to: shareUri });
       await Sharing.shareAsync(shareUri, { UTI: '.pdf', mimeType: 'application/pdf' });
     } catch (error: any) {
       console.error('Error generating invoice:', error?.message || error);

@@ -112,7 +112,10 @@ export default function AnalyticsScreen() {
       </body></html>`;
     try {
       const file = await Print.printToFileAsync({ html });
-      await Sharing.shareAsync(file.uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+      if (!FileSystem.documentDirectory) throw new Error('Document storage is not available.');
+      const shareUri = `${FileSystem.documentDirectory}z-report-${Date.now()}.pdf`;
+      await FileSystem.copyAsync({ from: file.uri, to: shareUri });
+      await Sharing.shareAsync(shareUri, { UTI: '.pdf', mimeType: 'application/pdf' });
     } catch (error) {
       console.error('Could not export PDF:', error);
       Alert.alert(t('db_error'), String(error));

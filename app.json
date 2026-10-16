@@ -36,6 +36,14 @@
         }
       ],
       "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow access to select your restaurant logo for receipts and your profile background.",
+          "cameraPermission": "Allow camera access to take a photo of your restaurant logo for receipts and your profile background.",
+          "microphonePermission": false
+        }
+      ],
       "expo-sharing",
       "expo-sqlite",
       "expo-web-browser",

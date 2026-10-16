@@ -1,25 +1,37 @@
-import { DarkTheme, DefaultTheme, ThemeProvider, Tabs } from 'expo-router';
-import { useColorScheme, I18nManager } from 'react-native';
+import { DarkTheme, DefaultTheme, ThemeProvider, Stack, useRouter } from 'expo-router';
+import { useColorScheme, I18nManager, TouchableOpacity } from 'react-native';
 import { useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { initDatabase } from '../services/db';
 import { LanguageProvider, useLanguage } from '../constants/translations';
+import { OnboardingProvider } from '../components/onboarding-guide';
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
   const { t, isRTL } = useLanguage();
+  const router = useRouter();
+  const renderBackButton = () => (
+    <TouchableOpacity
+      onPress={() => {
+        if (router.canGoBack()) router.back();
+        else router.replace('/settings');
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={t('back')}
+      style={{ paddingHorizontal: 12, paddingVertical: 8 }}
+    >
+      <Ionicons
+        name={isRTL ? 'arrow-forward' : 'arrow-back'}
+        size={23}
+        color={colorScheme === 'dark' ? '#f8fafc' : '#0f172a'}
+      />
+    </TouchableOpacity>
+  );
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Tabs
+      <Stack
         screenOptions={{
-          tabBarActiveTintColor: colorScheme === 'dark' ? '#38bdf8' : '#0284c7',
-          tabBarInactiveTintColor: '#888888',
-          tabBarStyle: {
-            paddingBottom: 6,
-            paddingTop: 6,
-            height: 60,
-          },
           headerShown: true,
           headerStyle: {
             elevation: 1,
@@ -27,82 +39,34 @@ function RootLayoutNav() {
           },
           headerTitleStyle: {
             fontWeight: 'bold',
-            textAlign: isRTL ? 'right' : 'left',
           },
         }}
       >
-        <Tabs.Screen
-          name="index"
+        <Stack.Screen
+          name="(tabs)"
           options={{
-            title: t('active_day'),
-            tabBarLabel: t('active_day'),
-            headerTitle: t('daily_reconciliation'),
-            tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-              <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={24} color={color} />
-            ),
+            headerShown: false,
           }}
         />
-        <Tabs.Screen
-          name="pos"
-          options={{
-            title: t('pos_register'),
-            tabBarLabel: t('pos_register'),
-            headerTitle: t('pos_register'),
-            tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-              <Ionicons name={focused ? 'cart' : 'cart-outline'} size={24} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="products"
-          options={{
-            title: t('products'),
-            tabBarLabel: t('products'),
-            headerTitle: t('product_inventory'),
-            tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-              <Ionicons name={focused ? 'list' : 'list-outline'} size={24} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="inventory"
-          options={{
-            title: t('inventory'),
-            tabBarLabel: t('inventory'),
-            headerTitle: t('inventory'),
-            tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-              <Ionicons name={focused ? 'cube' : 'cube-outline'} size={24} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
+        <Stack.Screen
           name="analytics"
           options={{
-            title: t('analytics'),
-            headerTitle: t('z_report'),
-            href: null,
+            title: t('z_report'),
+            headerBackTitle: t('profile'),
+            headerLeft: renderBackButton,
+            gestureEnabled: true,
           }}
         />
-        <Tabs.Screen
+        <Stack.Screen
           name="history"
           options={{
-            title: t('history'),
-            headerTitle: t('closed_registers'),
-            href: null,
+            title: t('closed_registers'),
+            headerBackTitle: t('profile'),
+            headerLeft: renderBackButton,
+            gestureEnabled: true,
           }}
         />
-        <Tabs.Screen
-          name="settings"
-          options={{
-            title: t('profile'),
-            tabBarLabel: t('profile'),
-            headerTitle: t('profile'),
-            tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-              <Ionicons name={focused ? 'person-circle' : 'person-circle-outline'} size={24} color={color} />
-            ),
-          }}
-        />
-      </Tabs>
+      </Stack>
     </ThemeProvider>
   );
 }
@@ -119,7 +83,9 @@ export default function RootLayout() {
 
   return (
     <LanguageProvider>
-      <RootLayoutNav />
+      <OnboardingProvider>
+        <RootLayoutNav />
+      </OnboardingProvider>
     </LanguageProvider>
   );
 }

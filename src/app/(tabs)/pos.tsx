@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getCurrency, useLanguage } from '../constants/translations';
+import { getCurrency, useLanguage } from '../../constants/translations';
 import {
   addCashAdjustment,
   closeShift,
@@ -24,7 +24,7 @@ import {
   Product,
   Shift,
   startShift,
-} from '../services/db';
+} from '../../services/db';
 
 type CartLine = {
   product: Product;
@@ -38,7 +38,7 @@ const PAYMENT_METHODS: PaymentMethod[] = ['CASH', 'CARD', 'MOBILE_PAYMENT', 'DEL
 
 export default function PosScreen() {
   const isDark = useColorScheme() === 'dark';
-  const { t, language } = useLanguage();
+  const { t, language, isRTL } = useLanguage();
   const currency = getCurrency(language);
   const [shift, setShift] = useState<Shift | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -391,7 +391,17 @@ export default function PosScreen() {
       <Modal visible={closingResult !== null} transparent animationType="fade" onRequestClose={() => { setClosingResult(null); setShift(null); }}>
         <View style={styles.overlay}>
           <View style={[styles.modal, isDark && styles.cardDark]}>
-            <Text style={[styles.title, isDark && styles.textDark]}>{t('shift_closed')}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <TouchableOpacity
+                onPress={() => { setClosingResult(null); setShift(null); }}
+                accessibilityRole="button"
+                accessibilityLabel={t('back')}
+                style={{ padding: 6 }}
+              >
+                <Ionicons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={22} color={isDark ? '#f8fafc' : '#0f172a'} />
+              </TouchableOpacity>
+              <Text style={[styles.title, isDark && styles.textDark]}>{t('shift_closed')}</Text>
+            </View>
             {closingResult && (
               <>
                 <Text style={styles.subtle}>{t('expected_cash')}: {closingResult.expected.toFixed(3)} {currency}</Text>

@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getCurrency, useLanguage } from '../constants/translations';
+import { getCurrency, useLanguage } from '../../constants/translations';
 import {
   createInventoryItem,
   getInventoryItems,
@@ -26,7 +26,7 @@ import {
   removeRecipeIngredient,
   setRecipeIngredient,
   updateInventoryItem,
-} from '../services/db';
+} from '../../services/db';
 
 type RecipeLine = ReturnType<typeof getRecipeIngredients>[number];
 

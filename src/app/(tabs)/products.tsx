@@ -14,8 +14,8 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getProducts, createProduct, updateProduct, deleteProduct, Product } from '../services/db';
-import { useLanguage, getCurrency } from '../constants/translations';
+import { getProducts, createProduct, updateProduct, deleteProduct, Product } from '../../services/db';
+import { useLanguage, getCurrency } from '../../constants/translations';
 
 export default function ProductsScreen() {
   const colorScheme = useColorScheme();

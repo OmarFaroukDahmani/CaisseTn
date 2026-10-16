@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
-import { useLanguage, getCurrency } from '../constants/translations';
+import { useLanguage, getCurrency } from '../../constants/translations';
 import {
   getActiveRegisterForDate,
   startNewDay,
@@ -35,8 +35,8 @@ import {
   RegisterItem,
   getProducts,
   Product,
-} from '../services/db';
-import { syncRegisterToGoogle, isGoogleConnected } from '../services/googleSheets';
+} from '../../services/db';
+import { syncRegisterToGoogle, isGoogleConnected } from '../../services/googleSheets';
 
 type ViewMode = 'calendar' | 'detail';
 

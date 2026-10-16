@@ -17,14 +17,15 @@ import * as Google from 'expo-auth-session/providers/google';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Ionicons } from '@expo/vector-icons';
-import { getSetting, setSetting, getRegisterHistory, getRegisterDetails } from '../services/db';
+import { useOnboardingGuide } from '../../components/onboarding-guide';
+import { getSetting, setSetting, getRegisterHistory, getRegisterDetails } from '../../services/db';
 import {
   isGoogleConnected,
   getGoogleUser,
   disconnectGoogle,
   syncRegisterToGoogle,
-} from '../services/googleSheets';
-import { getCurrency, useLanguage, Language } from '../constants/translations';
+} from '../../services/googleSheets';
+import { getCurrency, useLanguage, Language } from '../../constants/translations';
 
 // Complete authentication sessions on web
 WebBrowser.maybeCompleteAuthSession();
@@ -33,6 +34,7 @@ export default function ProfileScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { t, language, setLanguage, isRTL } = useLanguage();
+  const { replayGuide } = useOnboardingGuide();
   const router = useRouter();
 
   const [connected, setConnected] = useState(isGoogleConnected);
@@ -363,6 +365,14 @@ export default function ProfileScreen() {
             <Text style={styles.menuDescription}>{t('app_settings_desc')}</Text>
           </View>
           <Ionicons name="chevron-down" size={18} color="#94a3b8" />
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.menuRow, styles.menuRowLast]} onPress={replayGuide}>
+          <Ionicons name="help-circle-outline" size={22} color="#0284c7" />
+          <View style={styles.menuTextColumn}>
+            <Text style={[styles.menuLabel, isDark ? styles.textDark : styles.textLight]}>{t('rewatch_guide')}</Text>
+            <Text style={styles.menuDescription}>{t('rewatch_guide_desc')}</Text>
+          </View>
+          <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color="#94a3b8" />
         </TouchableOpacity>
       </View>
 

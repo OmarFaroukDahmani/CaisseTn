@@ -15,10 +15,10 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useLanguage, getCurrency } from '../../constants/translations';
+import { NumericFontVariant, Typography } from '../../constants/theme';
 import {
   getActiveRegisterForDate,
   startNewDay,
@@ -37,6 +37,15 @@ import {
   Product,
 } from '../../services/db';
 import { syncRegisterToGoogle, isGoogleConnected } from '../../services/googleSheets';
+import {
+  generateAndSharePdf,
+  getShopProfile,
+  buildSummaryCards,
+  buildDataTable,
+  buildSectionTitle,
+  buildTotalsTable,
+  escapeHtml,
+} from '../../services/pdfTemplate';
 
 type ViewMode = 'calendar' | 'detail';
 
@@ -73,7 +82,7 @@ export default function DashboardScreen() {
   const [selectedDate, setSelectedDate] = useState('');
   const [register, setRegister] = useState<DailyRegister | null>(null);
   const [items, setItems] = useState<RegisterItem[]>([]);
-  const [actualCashStr, setActualCashStr] = useState('0');
+  const [actualCashStr, setActualCashStr] = useState('');
   const [showProductModal, setShowProductModal] = useState(false);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
 
@@ -184,10 +193,11 @@ export default function DashboardScreen() {
         setRegister(activeReg);
         const regItems = getRegisterItems(activeReg.id);
         setItems(regItems);
-        setActualCashStr(activeReg.actual_cash.toString());
+        setActualCashStr(activeReg.actual_cash > 0 ? activeReg.actual_cash.toString() : '');
       } else {
         setRegister(null);
         setItems([]);
+        setActualCashStr('');
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -204,7 +214,7 @@ export default function DashboardScreen() {
       const newReg = startNewDay(selectedDate);
       setRegister(newReg);
       setItems(getRegisterItems(newReg.id));
-      setActualCashStr('0');
+      setActualCashStr('');
     } catch (error) {
       console.error('Error starting day:', error);
       Alert.alert(t('db_error'), t('could_not_start_register'));
@@ -330,29 +340,72 @@ export default function DashboardScreen() {
     }
 
     const f = calculateFinancials();
+    const shop = getShopProfile();
     const locale = language === 'ar' ? 'ar-TN' : language === 'fr' ? 'fr-FR' : 'en-US';
     const formattedDate = new Date(register.date).toLocaleDateString(locale, {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     });
 
-    let productRowsHtml = '';
-    items.forEach((item) => {
+    const productRows = items.map((item) => {
       const sold = item.closing_count > item.opening_count ? 0 : item.opening_count - item.closing_count;
       const rev = sold * (item.selling_price || 0);
       const cost = sold * (item.cost_price || 0);
       const profit = rev - cost;
-      productRowsHtml += `<tr><td>${item.product_name}</td><td style="text-align: center;">${item.opening_count}</td><td style="text-align: center;">${item.closing_count}</td><td style="text-align: center;">${sold}</td><td style="text-align: right;">${item.selling_price?.toFixed(3)} ${CURRENCY}</td><td style="text-align: right; font-weight: bold;">${rev.toFixed(3)} ${CURRENCY}</td><td style="text-align: right; color: #10b981;">${profit.toFixed(3)} ${CURRENCY}</td></tr>`;
+      return [
+        escapeHtml(item.product_name || ''),
+        String(item.opening_count),
+        String(item.closing_count),
+        String(sold),
+        `${item.selling_price?.toFixed(3)} ${CURRENCY}`,
+        `<span class="font-bold">${rev.toFixed(3)} ${CURRENCY}</span>`,
+        `<span class="text-green">${profit.toFixed(3)} ${CURRENCY}</span>`,
+      ];
     });
 
-    const dir = language === 'ar' ? 'rtl' : 'ltr';
-    const htmlContent = `<!DOCTYPE html><html dir="${dir}" lang="${language}"><head><meta charset="utf-8"><title>${t('daily_reconciliation')} - ${register.date}</title><style>body{font-family:'Helvetica Neue',Arial,sans-serif;color:#333;padding:20px;line-height:1.4;text-align:${isRTL ? 'right' : 'left'}}.header{border-bottom:2px solid #0284c7;padding-bottom:12px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-end;flex-direction:row-reverse}.app-title{font-size:26px;font-weight:bold;color:#0284c7;margin:0}.doc-title{font-size:14px;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin:4px 0 0 0}.date{font-size:16px;font-weight:bold;text-align:left;margin:0}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}.card{background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px}.card-title{font-size:10px;text-transform:uppercase;color:#64748b;margin-bottom:6px;font-weight:bold}.card-value{font-size:18px;font-weight:bold}table{width:100%;border-collapse:collapse;margin-top:16px;margin-bottom:30px}th{background-color:#f1f5f9;border-bottom:2px solid #cbd5e1;padding:10px;font-size:11px;text-transform:uppercase;color:#475569;font-weight:bold;text-align:right}td{padding:10px;border-bottom:1px solid #e2e8f0;font-size:13px;text-align:right}.totals-table{width:40%;margin-right:auto;margin-left:0;margin-top:0}.totals-table td{font-size:14px;padding:8px}.totals-title{font-size:18px;font-weight:bold;color:#0f172a;margin-top:30px;border-bottom:1px solid #e2e8f0;padding-bottom:6px}.footer{text-align:center;font-size:11px;color:#94a3b8;margin-top:50px;border-top:1px solid #e2e8f0;padding-top:10px}</style></head><body><div class="header"><div><h1 class="app-title">Hsabi</h1><p class="doc-title">${t('daily_reconciliation')}</p></div><div style="text-align:left"><p class="date">${formattedDate}</p></div></div><div class="grid"><div class="card"><div class="card-title">${t('expected_revenue')}</div><div class="card-value">${f.expectedRevenue.toFixed(3)} ${CURRENCY}</div></div><div class="card"><div class="card-title">${t('net_profit')}</div><div class="card-value" style="color:#10b981">${f.netProfit.toFixed(3)} ${CURRENCY}</div></div><div class="card"><div class="card-title">${t('drawer_discrepancy')}</div><div class="card-value">${f.discrepancy.toFixed(3)} ${CURRENCY}</div></div></div><table><thead><tr><th>${t('product_name')}</th><th>${t('opening_stock')}</th><th>${t('closing_stock')}</th><th>${t('sold')}</th><th>${t('retail_selling')}</th><th>${t('rev')}</th><th>${t('profit_margin')}</th></tr></thead><tbody>${productRowsHtml}</tbody></table><div class="totals-title">${t('day_total')}</div><table class="totals-table"><tr><td>${t('expected_revenue')}</td><td style="text-align:left;font-weight:bold">${f.expectedRevenue.toFixed(3)} ${CURRENCY}</td></tr><tr><td>${t('net_profit')}</td><td style="text-align:left;font-weight:bold;color:#10b981">${f.netProfit.toFixed(3)} ${CURRENCY}</td></tr><tr><td>${t('actual_cash_drawer')}</td><td style="text-align:left;font-weight:bold">${(f.discrepancy + f.expectedRevenue).toFixed(3)} ${CURRENCY}</td></tr><tr><td>${t('drawer_discrepancy')}</td><td style="text-align:left;font-weight:bold">${f.discrepancy.toFixed(3)} ${CURRENCY}</td></tr></table><div class="footer">Hsabi - ${new Date().toLocaleDateString(locale)}</div></body></html>`;
+    const productTable = buildDataTable(
+      [t('product_name'), t('opening_stock'), t('closing_stock'), t('sold'), t('retail_selling'), t('rev'), t('profit_margin')],
+      productRows,
+      { align: ['start', 'center', 'center', 'center', 'end', 'end', 'end'] }
+    );
+
+    const summaryCards = buildSummaryCards([
+      { label: t('expected_revenue'), value: `${f.expectedRevenue.toFixed(3)} ${CURRENCY}`, color: 'blue', highlight: true },
+      { label: t('actual_cash_drawer'), value: `${(parseFloat(actualCashStr) || 0).toFixed(3)} ${CURRENCY}` },
+      { label: t('drawer_discrepancy'), value: `${f.discrepancy > 0 ? '+' : ''}${f.discrepancy.toFixed(3)} ${CURRENCY}`, color: f.discrepancy === 0 ? 'green' : f.discrepancy > 0 ? 'blue' : 'red' },
+    ]);
+
+    const totalsTable = buildTotalsTable([
+      { label: t('expected_revenue'), value: `${f.expectedRevenue.toFixed(3)} ${CURRENCY}` },
+      { label: t('cost'), value: `${f.expectedCost.toFixed(3)} ${CURRENCY}` },
+      { label: t('net_profit'), value: `${f.netProfit.toFixed(3)} ${CURRENCY}`, color: f.netProfit >= 0 ? '#16a34a' : '#dc2626' },
+      { label: t('actual_cash_drawer'), value: `${(parseFloat(actualCashStr) || 0).toFixed(3)} ${CURRENCY}` },
+      { label: t('drawer_discrepancy'), value: `${f.discrepancy.toFixed(3)} ${CURRENCY}`, isTotal: true, color: f.discrepancy >= 0 ? '#16a34a' : '#dc2626' },
+    ]);
+
+    const bodyContent = `
+      ${summaryCards}
+      ${buildSectionTitle(t('products'))}
+      ${productTable}
+      ${buildSectionTitle(t('day_total'))}
+      ${totalsTable}
+    `;
 
     try {
-      const printResult = await Print.printToFileAsync({ html: htmlContent });
-      if (!FileSystem.documentDirectory) throw new Error('Document storage is not available.');
-      const shareUri = `${FileSystem.documentDirectory}daily-reconciliation-${Date.now()}.pdf`;
-      await FileSystem.copyAsync({ from: printResult.uri, to: shareUri });
-      await Sharing.shareAsync(shareUri, { UTI: '.pdf', mimeType: 'application/pdf' });
+      await generateAndSharePdf({
+        direction: isRTL ? 'rtl' : 'ltr',
+        language,
+        templateVariant: 'daily-reconciliation',
+        shopName: shop.name,
+        shopAddress: shop.address,
+        shopPhone: shop.phone,
+        logoUri: shop.logoUri,
+        docTitle: t('daily_reconciliation'),
+        docSubtitle: '',
+        date: formattedDate,
+        bodyContent,
+        footerText: `${new Date().toLocaleString(locale)} · ${t('daily_reconciliation')}`,
+        fileName: shop.name ? `${shop.name}-daily-reconciliation` : 'daily-reconciliation',
+      });
     } catch (error: any) {
       console.error('Error generating invoice:', error?.message || error);
       Alert.alert(t('db_error'), error?.message || '');
@@ -550,10 +603,15 @@ export default function DashboardScreen() {
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <TouchableOpacity
                 onPress={toggleReopen}
-                style={[styles.smallButton, { backgroundColor: register.is_closed === 1 ? '#f59e0b' : '#64748b' }]}
+                style={[styles.smallButton, { backgroundColor: register.is_closed === 1 ? '#f59e0b' : '#16a34a' }]}
               >
-                <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>
-                  {register.is_closed === 1 ? t('open') : t('closed')}
+                <Ionicons 
+                  name={register.is_closed === 1 ? 'lock-closed' : 'lock-open'} 
+                  size={14} 
+                  color="#fff" 
+                />
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold', marginLeft: 4 }}>
+                  {register.is_closed === 1 ? t('closed') : t('open')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleDeleteRegister} style={[styles.smallButton, { backgroundColor: '#ef4444' }]}>
@@ -563,50 +621,73 @@ export default function DashboardScreen() {
           )}
         </View>
 
-        {/* Date Display */}
+        {/* Date Display Card */}
         <View style={[styles.dateHeaderCard, isDark ? styles.cardDark : styles.cardLight]}>
-          <Ionicons name="calendar" size={28} color={isDark ? '#38bdf8' : '#2563eb'} />
+          <View style={[styles.dateIcon, { backgroundColor: isDark ? '#0c4a6e' : '#e0f2fe' }]}>
+            <Ionicons name="calendar" size={24} color={isDark ? '#38bdf8' : '#0284c7'} />
+          </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.dateHeaderText, isDark ? styles.textDark : styles.textLight]}>
               {formatDate(selectedDate, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </Text>
             {register && (
-              <Text style={[styles.dateHeaderStatus, { color: register.is_closed === 1 ? '#ef4444' : '#16a34a' }]}>
-                {register.is_closed === 1 ? t('closed') : t('open')}
-              </Text>
+              <View style={[styles.statusBadge, { backgroundColor: register.is_closed === 1 ? '#fef2f2' : '#f0fdf4' }]}>
+                <View style={[styles.statusDot, { backgroundColor: register.is_closed === 1 ? '#ef4444' : '#16a34a' }]} />
+                <Text style={[styles.statusText, { color: register.is_closed === 1 ? '#dc2626' : '#16a34a' }]}>
+                  {register.is_closed === 1 ? t('closed') : t('open')}
+                </Text>
+              </View>
             )}
           </View>
         </View>
 
         {!register ? (
           <View style={styles.noRegisterContainer}>
-            <Ionicons name="document-outline" size={64} color={isDark ? '#38bdf8' : '#2563eb'} style={{ marginBottom: 16 }} />
+            <View style={[styles.emptyIcon, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }]}>
+              <Ionicons name="document-text-outline" size={48} color={isDark ? '#38bdf8' : '#2563eb'} />
+            </View>
+            <Text style={[styles.noRegisterTitle, isDark ? styles.textDark : styles.textLight]}>
+              {t('no_session')}
+            </Text>
             <Text style={[styles.noRegisterText, isDark ? styles.textDarkSub : styles.textLightSub]}>
               {t('no_session_desc')}
             </Text>
             <TouchableOpacity style={styles.startButton} onPress={handleStartDay}>
+              <Ionicons name="play" size={18} color="#fff" />
               <Text style={styles.startButtonText}>{t('start_new_day')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <>
-            {/* Product Management Row */}
-            <View style={styles.productMgmtRow}>
-              <Text style={[styles.sectionTitle, isDark ? styles.textDark : styles.textLight]}>
-                {items.length} {t('items_count')} | {soldCount} {t('sold')}
-              </Text>
-              <TouchableOpacity style={styles.manageProductsBtn} onPress={openManageProducts}>
-                <Ionicons name="grid-outline" size={16} color="#fff" style={{ marginLeft: 6 }} />
-                <Text style={{ color: '#fff', fontSize: 13, fontWeight: 'bold' }}>{t('products')}</Text>
-              </TouchableOpacity>
+            {/* Products Section Header */}
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.sectionTitleRow}>
+                <Ionicons name="cube-outline" size={20} color={isDark ? '#38bdf8' : '#0284c7'} />
+                <Text style={[styles.sectionTitle, isDark ? styles.textDark : styles.textLight]}>
+                  {t('products')}
+                </Text>
+              </View>
+              <View style={styles.statsRow}>
+                <View style={styles.statBadge}>
+                  <Text style={[styles.statNumber, { color: isDark ? '#38bdf8' : '#0284c7' }]}>{items.length}</Text>
+                  <Text style={[styles.statLabel, isDark ? styles.textDarkSub : styles.textLightSub]}>{t('items_count')}</Text>
+                </View>
+                <View style={styles.statBadge}>
+                  <Text style={[styles.statNumber, { color: '#16a34a' }]}>{soldCount}</Text>
+                  <Text style={[styles.statLabel, isDark ? styles.textDarkSub : styles.textLightSub]}>{t('sold')}</Text>
+                </View>
+                <TouchableOpacity style={styles.manageProductsBtn} onPress={openManageProducts}>
+                  <Ionicons name="add-circle" size={22} color="#fff" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Product Cards */}
             {items.length === 0 ? (
-              <View style={[styles.card, isDark ? styles.cardDark : styles.cardLight, { alignItems: 'center', padding: 24 }]}>
+              <View style={[styles.card, isDark ? styles.cardDark : styles.cardLight, styles.emptyProductsCard]}>
                 <Ionicons name="alert-circle-outline" size={32} color="#f59e0b" style={{ marginBottom: 8 }} />
                 <Text style={[styles.emptyText, isDark ? styles.textDark : styles.textLight]}>{t('no_products')}</Text>
-                <Text style={[styles.emptySub, isDark ? styles.textDarkSub : styles.textLightSub, { textAlign: 'center', marginTop: 4 }]}>
+                <Text style={[styles.emptySub, isDark ? styles.textDarkSub : styles.textLightSub]}>
                   {t('add_products_hint')}
                 </Text>
               </View>
@@ -619,19 +700,28 @@ export default function DashboardScreen() {
 
                 return (
                   <View key={item.id} style={[styles.card, isDark ? styles.cardDark : styles.cardLight]}>
-                    <View style={styles.productRow}>
-                      <Text style={[styles.productName, isDark ? styles.textDark : styles.textLight]}>{item.product_name}</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <Text style={styles.productPrice}>{t('cost')}: {item.cost_price?.toFixed(3)} {CURRENCY}</Text>
-                        <TouchableOpacity onPress={() => handleToggleProduct({ id: item.product_id, name: item.product_name || '', cost_price: 0, selling_price: 0, stack_price: 0, stack_quantity: 1, is_deleted: 0 })}>
-                          <Ionicons name="close-circle" size={20} color="#ef4444" />
-                        </TouchableOpacity>
+                    {/* Product Header */}
+                    <View style={styles.productHeader}>
+                      <View style={styles.productInfo}>
+                        <Text style={[styles.productName, isDark ? styles.textDark : styles.textLight]}>
+                          {item.product_name}
+                        </Text>
+                        <Text style={styles.productPrice}>
+                          {t('cost')}: {item.cost_price?.toFixed(3)} {CURRENCY}
+                        </Text>
                       </View>
+                      <TouchableOpacity 
+                        onPress={() => handleToggleProduct({ id: item.product_id, name: item.product_name || '', cost_price: 0, selling_price: 0, stack_price: 0, stack_quantity: 1, is_deleted: 0 })}
+                        style={styles.removeButton}
+                      >
+                        <Ionicons name="close-circle" size={22} color="#ef4444" />
+                      </TouchableOpacity>
                     </View>
 
-                    <View style={styles.inputsRow}>
-                      <View style={styles.inputColumn}>
-                        <Text style={styles.inputLabel}>{t('opening_stock')}</Text>
+                    {/* Count Inputs */}
+                    <View style={styles.countInputsRow}>
+                      <View style={styles.countInputCol}>
+                        <Text style={styles.countLabel}>{t('opening_stock')}</Text>
                         <TextInput
                           style={[styles.countInput, isDark ? styles.inputDark : styles.inputLight]}
                           keyboardType="number-pad"
@@ -639,8 +729,11 @@ export default function DashboardScreen() {
                           onChangeText={(val) => handleItemCountChange(item.id, 'opening', val)}
                         />
                       </View>
-                      <View style={styles.inputColumn}>
-                        <Text style={styles.inputLabel}>{t('closing_stock')}</Text>
+                      <View style={styles.countArrow}>
+                        <Ionicons name="arrow-forward" size={16} color="#94a3b8" />
+                      </View>
+                      <View style={styles.countInputCol}>
+                        <Text style={styles.countLabel}>{t('closing_stock')}</Text>
                         <TextInput
                           style={[styles.countInput, isDark ? styles.inputDark : styles.inputLight, isError && styles.errorInput]}
                           keyboardType="number-pad"
@@ -648,86 +741,114 @@ export default function DashboardScreen() {
                           onChangeText={(val) => handleItemCountChange(item.id, 'closing', val)}
                         />
                       </View>
-                      <View style={styles.mathColumn}>
-                        {isError ? (
-                          <View style={{ alignItems: 'flex-start' }}>
-                            <Text style={{ color: '#ef4444', fontSize: 10, fontWeight: 'bold', textAlign: 'left' }}>{t('stock_error')}</Text>
-                            <Text style={{ color: '#ef4444', fontSize: 11, textAlign: 'left' }}>{t('closing_gt_opening')}</Text>
-                          </View>
-                        ) : (
-                          <>
-                            <Text style={styles.mathLabel}>{t('sold')}: {sold}</Text>
-                            <Text style={[styles.mathValue, { color: '#16a34a', textAlign: 'left' }]}>
-                              {t('rev')}: {expectedRev.toFixed(3)} {CURRENCY}
-                            </Text>
-                            <Text style={[styles.mathValue, { color: '#64748b', fontSize: 11, textAlign: 'left' }]}>
-                              {t('cost')}: {costTotal.toFixed(3)} {CURRENCY}
-                            </Text>
-                          </>
-                        )}
-                      </View>
                     </View>
+
+                    {/* Calculation Result */}
+                    {isError ? (
+                      <View style={[styles.calcResult, styles.errorResult]}>
+                        <Ionicons name="alert-circle" size={16} color="#dc2626" />
+                        <Text style={[styles.calcResultText, { color: '#dc2626' }]}>
+                          {t('closing_gt_opening')}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={styles.calcResult}>
+                        <View style={styles.calcItem}>
+                          <Text style={styles.calcLabel}>{t('sold')}</Text>
+                          <Text style={[styles.calcValue, { color: '#0284c7' }]}>{sold}</Text>
+                        </View>
+                        <View style={styles.calcDivider} />
+                        <View style={styles.calcItem}>
+                          <Text style={styles.calcLabel}>{t('rev')}</Text>
+                          <Text style={[styles.calcValue, { color: '#16a34a' }]}>{expectedRev.toFixed(3)}</Text>
+                        </View>
+                        <View style={styles.calcDivider} />
+                        <View style={styles.calcItem}>
+                          <Text style={styles.calcLabel}>{t('cost')}</Text>
+                          <Text style={[styles.calcValue, { color: '#64748b' }]}>{costTotal.toFixed(3)}</Text>
+                        </View>
+                      </View>
+                    )}
                   </View>
                 );
               })
             )}
 
             {/* Financial Summary */}
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, isDark ? styles.textDark : styles.textLight]}>{t('financials_cash')}</Text>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.sectionTitleRow}>
+                <Ionicons name="cash-outline" size={20} color={isDark ? '#38bdf8' : '#0284c7'} />
+                <Text style={[styles.sectionTitle, isDark ? styles.textDark : styles.textLight]}>
+                  {t('financials_cash')}
+                </Text>
+              </View>
             </View>
 
-            <View style={[styles.card, isDark ? styles.cardDark : styles.cardLight, styles.summaryCard]}>
-              <View style={styles.financialInputs}>
-                <View style={styles.financialInputCol}>
-                  <Text style={styles.summaryLabel}>{t('actual_cash_drawer')}</Text>
-                  <TextInput
-                    style={[styles.financialInput, isDark ? styles.inputDark : styles.inputLight]}
-                    keyboardType="decimal-pad"
-                    value={actualCashStr}
-                    onChangeText={handleFinancialsChange}
+            <View style={[styles.card, isDark ? styles.cardDark : styles.cardLight]}>
+              {/* Cash Input */}
+              <View style={styles.cashInputContainer}>
+                <Text style={[styles.cashInputLabel, isDark ? styles.textDark : styles.textLight]}>
+                  {t('actual_cash_drawer')}
+                </Text>
+                <TextInput
+                  style={[styles.cashInput, isDark ? styles.cashInputDark : styles.cashInputLight]}
+                  keyboardType="decimal-pad"
+                  value={actualCashStr}
+                  onChangeText={handleFinancialsChange}
+                  placeholder="0.000"
+                  placeholderTextColor="#94a3b8"
+                />
+              </View>
+
+              <View style={styles.financialDivider} />
+
+              {/* Financial Breakdown */}
+              <View style={styles.financialBreakdown}>
+                <View style={styles.financialRow}>
+                  <Text style={styles.financialLabel}>{t('expected_revenue')}</Text>
+                  <Text style={[styles.financialValue, isDark ? styles.textDark : styles.textLight]}>
+                    {financials.expectedRevenue.toFixed(3)} {CURRENCY}
+                  </Text>
+                </View>
+                <View style={styles.financialRow}>
+                  <Text style={styles.financialLabel}>{t('net_profit')}</Text>
+                  <Text style={[styles.financialValue, { color: financials.netProfit >= 0 ? '#16a34a' : '#ef4444', fontWeight: 'bold' }]}>
+                    {financials.netProfit.toFixed(3)} {CURRENCY}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.financialDivider} />
+
+              {/* Discrepancy */}
+              <View style={styles.discrepancyCard}>
+                <View style={styles.discrepancyHeader}>
+                  <Ionicons 
+                    name={financials.discrepancy === 0 ? 'checkmark-circle' : financials.discrepancy > 0 ? 'trending-up' : 'trending-down'} 
+                    size={20} 
+                    color={financials.discrepancy === 0 ? '#16a34a' : financials.discrepancy > 0 ? '#0284c7' : '#ef4444'} 
                   />
-                </View>
-              </View>
-
-              <View style={styles.divider} />
-
-              <View style={styles.calcRow}>
-                <Text style={styles.calcLabel}>{t('expected_revenue')}</Text>
-                <Text style={[styles.calcValue, isDark ? styles.textDark : styles.textLight]}>{financials.expectedRevenue.toFixed(3)} {CURRENCY}</Text>
-              </View>
-              <View style={styles.calcRow}>
-                <Text style={styles.calcLabel}>{t('expected_cash_register')}</Text>
-                <Text style={[styles.calcValue, isDark ? styles.textDark : styles.textLight, { fontWeight: 'bold' }]}>{financials.expectedCashInRegister.toFixed(3)} {CURRENCY}</Text>
-              </View>
-              <View style={styles.calcRow}>
-                <Text style={styles.calcLabel}>{t('net_profit')}</Text>
-                <Text style={[styles.calcValue, { color: financials.netProfit >= 0 ? '#16a34a' : '#ef4444', fontWeight: 'bold' }]}>{financials.netProfit.toFixed(3)} {CURRENCY}</Text>
-              </View>
-
-              <View style={styles.divider} />
-
-              <View style={styles.discrepancyRow}>
-                <Text style={styles.discrepancyLabel}>{t('drawer_discrepancy')}</Text>
-                <View style={styles.discrepancyBadgeContainer}>
-                  <Text style={[styles.discrepancyValue, { color: financials.discrepancy === 0 ? '#16a34a' : financials.discrepancy > 0 ? '#2563eb' : '#ef4444' }]}>
-                    {financials.discrepancy > 0 ? '+' : ''}{financials.discrepancy.toFixed(3)} {CURRENCY}
-                  </Text>
-                  <Text style={styles.discrepancySub}>
-                    {financials.discrepancy === 0 ? t('perfect_match') : financials.discrepancy > 0 ? t('cash_surplus') : t('cash_shortage')}
+                  <Text style={[styles.discrepancyTitle, isDark ? styles.textDark : styles.textLight]}>
+                    {t('drawer_discrepancy')}
                   </Text>
                 </View>
+                <Text style={[styles.discrepancyAmount, { color: financials.discrepancy === 0 ? '#16a34a' : financials.discrepancy > 0 ? '#0284c7' : '#ef4444' }]}>
+                  {financials.discrepancy > 0 ? '+' : ''}{financials.discrepancy.toFixed(3)} {CURRENCY}
+                </Text>
+                <Text style={[styles.discrepancyStatus, { color: financials.discrepancy === 0 ? '#16a34a' : financials.discrepancy > 0 ? '#0284c7' : '#ef4444' }]}>
+                  {financials.discrepancy === 0 ? t('perfect_match') : financials.discrepancy > 0 ? t('cash_surplus') : t('cash_shortage')}
+                </Text>
               </View>
 
               {/* Terminal Actions */}
               {items.length > 0 && (
                 <View style={styles.terminalActions}>
                   <TouchableOpacity style={styles.invoiceButton} onPress={handleExportPDF}>
-                    <Ionicons name="document-text-outline" size={20} color="#fff" style={{ marginLeft: 8 }} />
-                    <Text style={styles.buttonText}>{t('history')}</Text>
+                    <Ionicons name="document-text-outline" size={20} color="#fff" />
+                    <Text style={styles.buttonText}>{t('export_pdf')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.saveAndCloseButton} onPress={handleSaveAndClose}>
-                    <Ionicons name="checkmark-circle-outline" size={20} color="#fff" style={{ marginLeft: 8 }} />
+                    <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
                     <Text style={styles.buttonText}>{t('save_close_day')}</Text>
                   </TouchableOpacity>
                 </View>
@@ -796,7 +917,7 @@ const styles = StyleSheet.create({
   navRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   navButton: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(37, 99, 235, 0.1)' },
   monthYearContainer: { alignItems: 'center', flex: 1 },
-  monthText: { fontSize: 22, fontWeight: 'bold', marginBottom: 4 },
+  monthText: { fontSize: Typography.screenTitle, fontWeight: Typography.bold, marginBottom: 4 },
   yearNav: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   yearNavBtn: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(100, 116, 139, 0.1)' },
   yearText: { fontSize: 18, fontWeight: '600', minWidth: 50, textAlign: 'center' },
@@ -805,7 +926,7 @@ const styles = StyleSheet.create({
 
   dayNamesRow: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 4 },
   dayNameCell: { flex: 1, alignItems: 'center', paddingVertical: 8 },
-  dayNameText: { fontSize: 12, fontWeight: '700' },
+  dayNameText: { fontSize: Typography.caption, fontWeight: Typography.semibold },
 
   calendarGrid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: 16, borderRadius: 12, padding: 4 },
   dayCell: { width: `${100 / 7}%`, aspectRatio: 1, justifyContent: 'center', alignItems: 'center', borderRadius: 8 },
@@ -827,69 +948,200 @@ const styles = StyleSheet.create({
   headerDark: { backgroundColor: '#1e293b', borderBottomColor: '#334155' },
   backButton: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   backButtonText: { fontSize: 15, fontWeight: '600' },
-  smallButton: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  smallButton: { 
+    flexDirection: 'row', 
+    paddingHorizontal: 12, 
+    paddingVertical: 8, 
+    borderRadius: 8, 
+    alignItems: 'center', 
+    justifyContent: 'center' 
+  },
 
   dateHeaderCard: { flexDirection: 'row', alignItems: 'center', margin: 16, marginBottom: 8, padding: 16, borderRadius: 14, gap: 12 },
+  dateIcon: { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   dateHeaderText: { fontSize: 17, fontWeight: 'bold', textAlign: 'right' },
-  dateHeaderStatus: { fontSize: 13, fontWeight: '600', textAlign: 'right', marginTop: 2 },
+  statusBadge: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    alignSelf: 'flex-end',
+    paddingHorizontal: 8, 
+    paddingVertical: 4, 
+    borderRadius: 6, 
+    marginTop: 4,
+    gap: 4 
+  },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  statusText: { fontSize: 12, fontWeight: 'bold' },
 
   noRegisterContainer: { alignItems: 'center', padding: 24, paddingTop: 40 },
+  emptyIcon: { width: 96, height: 96, borderRadius: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  noRegisterTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 8 },
   noRegisterText: { fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 24, paddingHorizontal: 16 },
-  startButton: { backgroundColor: '#2563eb', paddingVertical: 16, paddingHorizontal: 40, borderRadius: 30, shadowColor: '#2563eb', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 8, elevation: 6 },
+  startButton: { 
+    backgroundColor: '#1d4ed8', 
+    paddingVertical: 14, 
+    paddingHorizontal: 32, 
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8 
+  },
   startButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
 
-  sectionHeader: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 10 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', textAlign: 'right' },
+  // Section Headers
+  sectionHeaderRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    paddingHorizontal: 16, 
+    paddingTop: 20, 
+    paddingBottom: 10 
+  },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', textAlign: 'right' },
+  statsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  statBadge: { 
+    paddingHorizontal: 10, 
+    paddingVertical: 6, 
+    borderRadius: 8, 
+    alignItems: 'center',
+    backgroundColor: 'rgba(100, 116, 139, 0.1)',
+    minWidth: 48 
+  },
+  statNumber: { fontSize: 15, fontWeight: 'bold' },
+  statLabel: { fontSize: 9 },
+  manageProductsBtn: { 
+    width: 36, 
+    height: 36, 
+    borderRadius: 18, 
+    backgroundColor: '#2563eb', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+  },
 
-  productMgmtRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
-  manageProductsBtn: { backgroundColor: '#2563eb', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-
-  card: { borderRadius: 14, padding: 16, marginHorizontal: 16, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 4, elevation: 2 },
+  // Cards
+  card: { borderRadius: 12, padding: 16, marginHorizontal: 16, marginBottom: 12, borderWidth: 1, borderColor: '#e2e8f0' },
   cardLight: { backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderWidth: 1 },
   cardDark: { backgroundColor: '#1e293b', borderColor: '#334155', borderWidth: 1 },
 
-  productRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, paddingBottom: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#cbd5e1' },
-  productName: { fontSize: 16, fontWeight: 'bold', textAlign: 'right', flex: 1 },
-  productPrice: { fontSize: 12, color: '#64748b', textAlign: 'left' },
+  // Product Cards
+  productHeader: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'flex-start', 
+    marginBottom: 14, 
+    paddingBottom: 12, 
+    borderBottomWidth: StyleSheet.hairlineWidth, 
+    borderBottomColor: '#e2e8f0' 
+  },
+  productInfo: { flex: 1 },
+  productName: { fontSize: 17, fontWeight: 'bold', textAlign: 'right', marginBottom: 2 },
+  productPrice: { fontSize: Typography.caption, color: '#64748b', textAlign: 'right', fontVariant: NumericFontVariant },
+  removeButton: { padding: 4 },
 
-  inputsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  inputColumn: { flex: 1, marginHorizontal: 4 },
-
-  inputLabel: { fontSize: 10, color: '#64748b', marginBottom: 4, textTransform: 'uppercase', fontWeight: '700', textAlign: 'right' },
-  countInput: { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: 16, textAlign: 'right', fontWeight: '600' },
+  countInputsRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    marginBottom: 12 
+  },
+  countInputCol: { flex: 1 },
+  countArrow: { paddingHorizontal: 12, paddingVertical: 24 },
+  countLabel: { 
+    fontSize: Typography.label, 
+    color: '#64748b', 
+    marginBottom: 6, 
+    fontWeight: Typography.semibold, 
+    textAlign: 'center' 
+  },
+  countInput: { 
+    borderWidth: 1, 
+    borderRadius: 8, 
+    padding: 12, 
+    fontSize: Typography.bodyLarge, 
+    textAlign: 'center', 
+    fontWeight: Typography.semibold, 
+    fontVariant: NumericFontVariant 
+  },
   inputLight: { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', color: '#0f172a' },
   inputDark: { backgroundColor: '#0f172a', borderColor: '#334155', color: '#f8fafc' },
   errorInput: { borderColor: '#ef4444', backgroundColor: '#fef2f2', borderWidth: 1.5 },
 
-  mathColumn: { flex: 1.3, alignItems: 'flex-start', justifyContent: 'center', paddingLeft: 8 },
-  mathLabel: { fontSize: 11, color: '#64748b', marginBottom: 1, textAlign: 'left' },
-  mathValue: { fontSize: 14, fontWeight: '600' },
+  calcResult: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-around', 
+    backgroundColor: '#f8fafc', 
+    borderRadius: 8, 
+    padding: 12 
+  },
+  errorResult: { 
+    backgroundColor: '#fef2f2', 
+    justifyContent: 'center' 
+  },
+  calcItem: { alignItems: 'center', flex: 1 },
+  calcDivider: { width: 1, height: 24, backgroundColor: '#e2e8f0' },
+  calcLabel: { fontSize: 11, color: '#64748b', marginBottom: 2 },
+  calcValue: { fontSize: 15, fontWeight: 'bold', fontVariant: NumericFontVariant },
+  calcResultText: { fontSize: 13, fontWeight: '600', marginLeft: 6 },
 
-  summaryCard: { marginBottom: 32 },
-  financialInputs: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16, gap: 8 },
-  financialInputCol: { flex: 1 },
-  summaryLabel: { fontSize: 12, fontWeight: '700', color: '#64748b', marginBottom: 6, textAlign: 'right' },
-  financialInput: { borderWidth: 1, borderRadius: 8, padding: 12, fontSize: 16, fontWeight: '600', textAlign: 'right' },
-
-  divider: { height: 1, backgroundColor: '#cbd5e1', opacity: 0.3, marginVertical: 14 },
-
-  calcRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 8 },
-  calcLabel: { fontSize: 14, color: '#64748b', textAlign: 'right', flex: 1 },
-  calcValue: { fontSize: 16, fontWeight: '700', textAlign: 'left' },
-
-  discrepancyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 12 },
-  discrepancyLabel: { fontSize: 17, fontWeight: 'bold', color: '#475569', textAlign: 'right' },
-  discrepancyBadgeContainer: { alignItems: 'flex-end' },
-  discrepancyValue: { fontSize: 20, fontWeight: 'bold' },
-  discrepancySub: { fontSize: 12, color: '#64748b', marginTop: 2 },
-
-  terminalActions: { marginTop: 24, gap: 14 },
-  invoiceButton: { backgroundColor: '#2563eb', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, borderRadius: 10 },
-  saveAndCloseButton: { backgroundColor: '#16a34a', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, borderRadius: 10 },
-  buttonText: { color: '#fff', fontSize: 17, fontWeight: 'bold' },
-
+  emptyProductsCard: { alignItems: 'center', padding: 24 },
   emptyText: { fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
   emptySub: { fontSize: 13, textAlign: 'center', color: '#64748b', marginTop: 4 },
+
+  // Financial Section
+  cashInputContainer: { marginBottom: 16 },
+  cashInputLabel: { fontSize: Typography.body, fontWeight: Typography.semibold, marginBottom: 8, textAlign: 'right' },
+  cashInput: { 
+    borderWidth: 2, 
+    borderRadius: 12, 
+    padding: 14, 
+    fontSize: 22, 
+    fontWeight: Typography.bold, 
+    textAlign: 'center', 
+    fontVariant: NumericFontVariant 
+  },
+  cashInputLight: { backgroundColor: '#f8fafc', borderColor: '#cbd5e1', color: '#0f172a' },
+  cashInputDark: { backgroundColor: '#0f172a', borderColor: '#334155', color: '#f8fafc' },
+
+  financialDivider: { height: 1, backgroundColor: '#e2e8f0', marginVertical: 16 },
+
+  financialBreakdown: { gap: 12 },
+  financialRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  financialLabel: { fontSize: Typography.body, color: '#64748b', textAlign: 'left', flex: 1 },
+  financialValue: { fontSize: Typography.metric, fontWeight: Typography.semibold, textAlign: 'left', fontVariant: NumericFontVariant },
+
+  discrepancyCard: { 
+    backgroundColor: '#f8fafc', 
+    borderRadius: 12, 
+    padding: 16, 
+    alignItems: 'center' 
+  },
+  discrepancyHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  discrepancyTitle: { fontSize: Typography.body, fontWeight: Typography.semibold },
+  discrepancyAmount: { fontSize: 28, fontWeight: Typography.extraBold, fontVariant: NumericFontVariant, marginBottom: 4 },
+  discrepancyStatus: { fontSize: Typography.label, fontWeight: Typography.semibold },
+
+  terminalActions: { marginTop: 20, gap: 12 },
+  invoiceButton: { 
+    backgroundColor: '#2563eb', 
+    flexDirection: 'row', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    padding: 16, 
+    borderRadius: 10,
+    gap: 8 
+  },
+  saveAndCloseButton: { 
+    backgroundColor: '#16a34a', 
+    flexDirection: 'row', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    padding: 16, 
+    borderRadius: 10,
+    gap: 8 
+  },
+  buttonText: { color: '#fff', fontSize: 17, fontWeight: 'bold' },
 
   // Modal styles
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },

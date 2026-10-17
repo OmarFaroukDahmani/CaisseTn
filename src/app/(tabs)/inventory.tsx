@@ -16,6 +16,7 @@ import {
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getCurrency, useLanguage } from '../../constants/translations';
+import { NumericFontVariant, Typography } from '../../constants/theme';
 import {
   createInventoryItem,
   getInventoryItems,
@@ -42,7 +43,7 @@ export default function InventoryScreen() {
   const [costPerBox, setCostPerBox] = useState('');
   const [unitsPerBox, setUnitsPerBox] = useState('');
   const [currentStock, setCurrentStock] = useState('');
-  const [threshold, setThreshold] = useState('0');
+  const [threshold, setThreshold] = useState('');
   const [recipeProductId, setRecipeProductId] = useState<number | null>(null);
   const [recipeItemId, setRecipeItemId] = useState<number | null>(null);
   const [recipeQuantity, setRecipeQuantity] = useState('');
@@ -240,17 +241,17 @@ const styles = StyleSheet.create({
   pageDark: { backgroundColor: '#0f172a' },
   list: { padding: 16, paddingBottom: 32, gap: 10 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 10 },
-  title: { fontSize: 22, fontWeight: '800', color: '#0f172a' },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#0f172a' },
+  title: { fontSize: Typography.screenTitle, fontWeight: Typography.extraBold, color: '#0f172a' },
+  sectionTitle: { fontSize: Typography.sectionTitle, fontWeight: Typography.bold, color: '#0f172a' },
   textDark: { color: '#f8fafc' },
-  subtle: { color: '#64748b', fontSize: 13, marginTop: 5 },
-  label: { color: '#475569', fontWeight: '600', marginTop: 5 },
+  subtle: { color: '#475569', fontSize: Typography.label, marginTop: 5 },
+  label: { color: '#334155', fontWeight: Typography.semibold, marginTop: 5, fontSize: Typography.label },
   card: { backgroundColor: '#fff', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', gap: 3 },
   cardDark: { backgroundColor: '#1e293b', borderColor: '#334155' },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  itemName: { color: '#0f172a', fontWeight: '700', fontSize: 16, flex: 1 },
+  itemName: { color: '#0f172a', fontWeight: Typography.bold, fontSize: Typography.bodyLarge, flex: 1 },
   badge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 12 },
-  unitCost: { color: '#0284c7', fontWeight: '700', marginTop: 4 },
+  unitCost: { color: '#0369a1', fontWeight: Typography.bold, fontSize: Typography.bodyLarge, marginTop: 4, fontVariant: NumericFontVariant },
   primaryButton: { backgroundColor: '#0284c7', paddingVertical: 10, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 9, flexDirection: 'row', gap: 4 },
   buttonText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   empty: { color: '#64748b', textAlign: 'center', paddingVertical: 24 },
@@ -258,13 +259,13 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', gap: 8, paddingVertical: 4 },
   chip: { borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8 },
   chipActive: { backgroundColor: '#0284c7', borderColor: '#0284c7' },
-  chipText: { color: '#475569', fontSize: 13 },
+  chipText: { color: '#334155', fontSize: Typography.label },
   chipTextActive: { color: '#fff', fontWeight: '700' },
   recipeLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5 },
-  recipeText: { color: '#334155', fontSize: 14 },
+  recipeText: { color: '#334155', fontSize: Typography.body },
   recipeAddRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   recipeQuantity: { flex: 1 },
-  input: { borderWidth: 1, borderRadius: 9, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 },
+  input: { borderWidth: 1, borderRadius: 9, paddingHorizontal: 12, paddingVertical: 10, fontSize: Typography.bodyLarge },
   inputLight: { backgroundColor: '#fff', borderColor: '#cbd5e1', color: '#0f172a' },
   inputDark: { backgroundColor: '#0f172a', borderColor: '#475569', color: '#f8fafc' },
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },

@@ -5,7 +5,7 @@ import { useLanguage } from '../../constants/translations';
 
 export default function TabsLayout() {
   const colorScheme = useColorScheme();
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
 
   return (
     <Tabs
@@ -18,13 +18,10 @@ export default function TabsLayout() {
           height: 60,
         },
         headerShown: true,
-        headerStyle: {
-          elevation: 1,
-          shadowOpacity: 0.1,
-        },
         headerTitleStyle: {
           fontWeight: 'bold',
         },
+        headerTitleAlign: isRTL ? 'right' : 'left',
       }}
     >
       <Tabs.Screen

@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import {
@@ -21,10 +20,23 @@ import {
   DailyRegister,
   RegisterItem,
 } from '../services/db';
+import { useLanguage, getCurrency } from '../constants/translations';
+import { NumericFontVariant, Typography } from '../constants/theme';
+import {
+  generateAndSharePdf,
+  getShopProfile,
+  buildSummaryCards,
+  buildDataTable,
+  buildSectionTitle,
+  buildTotalsTable,
+  escapeHtml,
+} from '../services/pdfTemplate';
 
 export default function HistoryScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const { t, language, isRTL } = useLanguage();
+  const CURRENCY = getCurrency(language);
 
   const [history, setHistory] = useState<DailyRegister[]>([]);
   const [selectedReg, setSelectedReg] = useState<DailyRegister | null>(null);
@@ -44,7 +56,7 @@ export default function HistoryScreen() {
       setHistory(records);
     } catch (error) {
       console.error('Error loading history:', error);
-      Alert.alert('Database Error', 'Could not load history.');
+      Alert.alert(t('db_error'), t('could_not_load_products'));
     }
   };
 
@@ -58,7 +70,7 @@ export default function HistoryScreen() {
       }
     } catch (error) {
       console.error('Error loading register details:', error);
-      Alert.alert('Error', 'Could not load details for this day.');
+      Alert.alert(t('db_error'), t('could_not_load_register'));
     }
   };
 
@@ -94,247 +106,86 @@ export default function HistoryScreen() {
   const handleGeneratePDF = async () => {
     if (!selectedReg) return;
 
-    const formattedDate = new Date(selectedReg.date).toLocaleDateString(undefined, {
+    const shop = getShopProfile();
+    const locale = language === 'ar' ? 'ar-TN' : language === 'fr' ? 'fr-FR' : 'en-US';
+    const formattedDate = new Date(selectedReg.date).toLocaleDateString(locale, {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
 
-    // Create HTML items rows
-    let productRowsHtml = '';
-    selectedItems.forEach((item) => {
+    const productRows = selectedItems.map((item) => {
       const sold = Math.max(0, item.opening_count - item.closing_count);
       const rev = sold * (item.selling_price || 0);
       const cost = sold * (item.cost_price || 0);
       const profit = Math.max(0, rev - cost);
-
-      productRowsHtml += `
-        <tr>
-          <td>${item.product_name}</td>
-          <td style="text-align: center;">${item.opening_count}</td>
-          <td style="text-align: center;">${item.closing_count}</td>
-          <td style="text-align: center;">${sold}</td>
-          <td style="text-align: right;">$${item.selling_price?.toFixed(2)}</td>
-          <td style="text-align: right; font-weight: bold; color: #10b981;">$${rev.toFixed(2)}</td>
-          <td style="text-align: right; color: #10b981;">$${profit.toFixed(2)}</td>
-        </tr>
-      `;
+      return [
+        escapeHtml(item.product_name || ''),
+        String(item.opening_count),
+        String(item.closing_count),
+        String(sold),
+        `${item.selling_price?.toFixed(3)} ${CURRENCY}`,
+        `<span class="font-bold text-blue">${rev.toFixed(3)} ${CURRENCY}</span>`,
+        `<span class="text-green">${profit.toFixed(3)} ${CURRENCY}</span>`,
+      ];
     });
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Daily Sales & Reconciliation - ${selectedReg.date}</title>
-        <style>
-          body {
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            color: #333;
-            padding: 20px;
-            line-height: 1.4;
-          }
-          .header {
-            border-bottom: 2px solid #0284c7;
-            padding-bottom: 12px;
-            margin-bottom: 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-          }
-          .app-title {
-            font-size: 26px;
-            font-weight: bold;
-            color: #0284c7;
-            margin: 0;
-          }
-          .doc-title {
-            font-size: 16px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #64748b;
-            margin: 4px 0 0 0;
-          }
-          .date {
-            font-size: 16px;
-            font-weight: bold;
-            text-align: right;
-            margin: 0;
-          }
-          .status {
-            font-size: 12px;
-            font-weight: bold;
-            padding: 4px 8px;
-            border-radius: 4px;
-            background-color: #fee2e2;
-            color: #ef4444;
-            display: inline-block;
-            margin-top: 4px;
-          }
-          .grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-bottom: 24px;
-          }
-          .card {
-            background-color: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 14px;
-          }
-          .card-title {
-            font-size: 11px;
-            text-transform: uppercase;
-            color: #64748b;
-            margin-bottom: 6px;
-            font-weight: bold;
-          }
-          .card-value {
-            font-size: 18px;
-            font-weight: bold;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 16px;
-            margin-bottom: 30px;
-          }
-          th {
-            background-color: #f1f5f9;
-            border-bottom: 2px solid #cbd5e1;
-            padding: 10px;
-            font-size: 12px;
-            text-transform: uppercase;
-            color: #475569;
-            font-weight: bold;
-          }
-          td {
-            padding: 10px;
-            border-bottom: 1px solid #e2e8f0;
-            font-size: 13px;
-          }
-          .totals-table {
-            width: 40%;
-            margin-left: auto;
-            margin-top: 0;
-          }
-          .totals-table td {
-            font-size: 14px;
-            padding: 8px;
-          }
-          .totals-title {
-            font-size: 18px;
-            font-weight: bold;
-            color: #0f172a;
-            margin-top: 30px;
-            border-bottom: 1px solid #e2e8f0;
-            padding-bottom: 6px;
-          }
-          .footer {
-            text-align: center;
-            font-size: 11px;
-            color: #94a3b8;
-            margin-top: 50px;
-            border-top: 1px solid #e2e8f0;
-            padding-top: 10px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div>
-            <h1 class="app-title">Hsabi Daily Report</h1>
-            <p class="doc-title">Sales & Reconciliation Summary</p>
-          </div>
-          <div style="text-align: right;">
-            <p class="date">${formattedDate}</p>
-            <span class="status">Closed & Reconciled</span>
-          </div>
-        </div>
+    const productTable = buildDataTable(
+      [t('product_name'), t('opening_stock'), t('closing_stock'), t('sold'), t('retail_selling'), t('rev'), t('profit_margin')],
+      productRows,
+      { align: ['start', 'center', 'center', 'center', 'end', 'end', 'end'] }
+    );
 
-        <div class="grid">
-          <div class="card">
-            <div class="card-title">Expected Sales</div>
-            <div class="card-value" style="color: #0284c7;">$${totals.expectedRevenue.toFixed(2)}</div>
-          </div>
-          <div class="card">
-            <div class="card-title">Actual Cash Drawer</div>
-            <div class="card-value">$${selectedReg.actual_cash.toFixed(2)}</div>
-          </div>
-          <div class="card">
-            <div class="card-title">Drawer Discrepancy</div>
-            <div class="card-value" style="color: ${totals.discrepancy === 0 ? '#10b981' : totals.discrepancy > 0 ? '#3b82f6' : '#ef4444'};">
-              ${totals.discrepancy > 0 ? '+' : ''}$${totals.discrepancy.toFixed(2)}
-            </div>
-          </div>
-        </div>
+    const summaryCards = buildSummaryCards([
+      { label: t('expected_revenue'), value: `${totals.expectedRevenue.toFixed(3)} ${CURRENCY}`, color: 'blue', highlight: true },
+      { label: t('actual_cash_drawer'), value: `${selectedReg.actual_cash.toFixed(3)} ${CURRENCY}` },
+      { label: t('drawer_discrepancy'), value: `${totals.discrepancy > 0 ? '+' : ''}${totals.discrepancy.toFixed(3)} ${CURRENCY}`, color: totals.discrepancy === 0 ? 'green' : totals.discrepancy > 0 ? 'blue' : 'red' },
+    ]);
 
-        <div class="totals-title">Product Ledger</div>
-        <table>
-          <thead>
-            <tr>
-              <th style="text-align: left;">Product</th>
-              <th>Opening</th>
-              <th>Closing</th>
-              <th>Sold</th>
-              <th style="text-align: right;">Price</th>
-              <th style="text-align: right;">Revenue</th>
-              <th style="text-align: right;">Profit Margin</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${productRowsHtml}
-          </tbody>
-        </table>
+    const totalsTable = buildTotalsTable([
+      { label: t('expected_revenue'), value: `${totals.expectedRevenue.toFixed(3)} ${CURRENCY}` },
+      { label: t('net_profit'), value: `${totals.netProfit.toFixed(3)} ${CURRENCY}`, color: totals.netProfit >= 0 ? '#16a34a' : '#dc2626' },
+      { label: t('actual_cash_drawer'), value: `${selectedReg.actual_cash.toFixed(3)} ${CURRENCY}` },
+      { label: t('drawer_discrepancy'), value: `${totals.discrepancy.toFixed(3)} ${CURRENCY}`, isTotal: true, color: totals.discrepancy >= 0 ? '#16a34a' : '#dc2626' },
+    ]);
 
-        <div class="totals-title">Financial Summary</div>
-        <table class="totals-table">
-          <tr>
-            <td>Expected Revenue:</td>
-            <td style="text-align: right;">$${totals.expectedRevenue.toFixed(2)}</td>
-          </tr>
-          <tr>
-            <td>Expenses:</td>
-            <td style="text-align: right; color: #ef4444;">-$${selectedReg.expenses.toFixed(2)}</td>
-          </tr>
-          <tr style="border-top: 2px solid #cbd5e1; font-weight: bold;">
-            <td>Gross Profit:</td>
-            <td style="text-align: right; color: #10b981;">$${totals.grossProfit.toFixed(2)}</td>
-          </tr>
-          <tr style="font-weight: bold; background-color: #f8fafc;">
-            <td>Net Profit:</td>
-            <td style="text-align: right; color: ${totals.netProfit >= 0 ? '#10b981' : '#ef4444'}; font-size: 16px;">
-              $${totals.netProfit.toFixed(2)}
-            </td>
-          </tr>
-        </table>
-
-        <div class="footer">
-          Generated on ${new Date().toLocaleString()} by Hsabi App. Local-first shop assistant.
-        </div>
-      </body>
-      </html>
+    const bodyContent = `
+      ${summaryCards}
+      ${buildSectionTitle(t('products'))}
+      ${productTable}
+      ${buildSectionTitle(t('day_total'))}
+      ${totalsTable}
     `;
 
     try {
-      const { uri } = await Print.printToFileAsync({ html: htmlContent });
-      if (!FileSystem.documentDirectory) throw new Error('Document storage is not available.');
-      const shareUri = `${FileSystem.documentDirectory}register-${Date.now()}.pdf`;
-      await FileSystem.copyAsync({ from: uri, to: shareUri });
-      await Sharing.shareAsync(shareUri, { UTI: '.pdf', mimeType: 'application/pdf' });
+      await generateAndSharePdf({
+        direction: isRTL ? 'rtl' : 'ltr',
+        language,
+        templateVariant: 'daily-reconciliation',
+        shopName: shop.name,
+        shopAddress: shop.address,
+        shopPhone: shop.phone,
+        logoUri: shop.logoUri,
+        docTitle: t('daily_reconciliation'),
+        docSubtitle: '',
+        date: formattedDate,
+        bodyContent,
+        footerText: `${new Date().toLocaleString(locale)} · ${t('daily_reconciliation')}`,
+        fileName: shop.name ? `${shop.name}-register` : 'register',
+      });
     } catch (error) {
       console.error('Error generating or sharing PDF:', error);
-      Alert.alert('PDF Generation Failed', 'Could not build or share the PDF report.');
+      Alert.alert(t('db_error'), t('could_not_save'));
     }
   };
 
   const renderHistoryItem = ({ item }: { item: DailyRegister }) => {
     const isClosed = item.is_closed === 1;
     const dateObj = new Date(item.date);
-    const dayName = dateObj.toLocaleDateString(undefined, { weekday: 'short' });
-    const formattedDate = dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    const locale = language === 'ar' ? 'ar-TN' : language === 'fr' ? 'fr-FR' : 'en-US';
+    const dayName = dateObj.toLocaleDateString(locale, { weekday: 'short' });
+    const formattedDate = dateObj.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
 
     return (
       <TouchableOpacity
@@ -346,7 +197,7 @@ export default function HistoryScreen() {
             <Text style={[styles.dayName, isDark ? styles.textDark : styles.textLight]}>{dayName}</Text>
           </View>
           <View style={styles.dateCol}>
-            <Text style={[styles.dateText, isDark ? styles.textDark : styles.textLight]}>{formattedDate}</Text>
+            <Text style={[styles.dateText, isDark ? styles.textDark : styles.textLight]} numberOfLines={1}>{formattedDate}</Text>
             <View style={styles.statusRow}>
               <Ionicons
                 name={isClosed ? 'lock-closed' : 'lock-open'}
@@ -354,18 +205,20 @@ export default function HistoryScreen() {
                 color={isClosed ? '#ef4444' : '#22c55e'}
               />
               <Text style={[styles.statusText, { color: isClosed ? '#ef4444' : '#22c55e' }]}>
-                {isClosed ? 'Closed & Locked' : 'Active day'}
+                {isClosed ? t('closed') : t('open')}
               </Text>
             </View>
           </View>
         </View>
 
         <View style={styles.historyRight}>
-          <Text style={styles.amountLabel}>Cash Found</Text>
-          <Text style={[styles.amountValue, isDark ? styles.textDark : styles.textLight]}>
-            ${item.actual_cash.toFixed(2)}
-          </Text>
-          <Ionicons name="chevron-forward" size={18} color="#888" style={{ marginLeft: 8 }} />
+          <View style={styles.amountCol}>
+            <Text style={styles.amountLabel}>{t('actual_cash_drawer')}</Text>
+            <Text style={[styles.amountValue, isDark ? styles.textDark : styles.textLight]} numberOfLines={1}>
+              {item.actual_cash.toFixed(3)} {CURRENCY}
+            </Text>
+          </View>
+          <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color="#888" />
         </View>
       </TouchableOpacity>
     );
@@ -377,7 +230,7 @@ export default function HistoryScreen() {
         <View style={styles.emptyContainer}>
           <Ionicons name="time-outline" size={64} color="#888" style={{ marginBottom: 16 }} />
           <Text style={[styles.emptyText, isDark ? styles.textDarkSub : styles.textLightSub]}>
-            No historical daily registers found. Close your first register session to see records here.
+            {t('no_reconciliations')}
           </Text>
         </View>
       ) : (
@@ -399,17 +252,20 @@ export default function HistoryScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, isDark ? styles.modalContentDark : styles.modalContentLight]}>
             <View style={styles.modalHeader}>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={[styles.modalTitle, isDark ? styles.textDark : styles.textLight]}>
-                  Register Audit
+                  {t('daily_reconciliation')}
                 </Text>
                 <Text style={[styles.modalSubtitle, isDark ? styles.textDarkSub : styles.textLightSub]}>
-                  {selectedReg && new Date(selectedReg.date).toLocaleDateString(undefined, {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
+                  {selectedReg && new Date(selectedReg.date).toLocaleDateString(
+                    language === 'ar' ? 'ar-TN' : language === 'fr' ? 'fr-FR' : 'en-US',
+                    {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    }
+                  )}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => setDetailVisible(false)}>
@@ -421,40 +277,26 @@ export default function HistoryScreen() {
               <ScrollView style={styles.modalBody}>
                 {/* Financial Summary */}
                 <View style={[styles.summaryCard, isDark ? styles.subCardDark : styles.subCardLight]}>
-                  <Text style={styles.cardHeaderTitle}>Sales Ledger Summary</Text>
+                  <Text style={styles.cardHeaderTitle}>{t('financials_cash')}</Text>
                   
                   <View style={styles.metricRow}>
-                    <Text style={styles.metricLabel}>Expected Gross Revenue</Text>
-                    <Text style={[styles.metricValue, isDark ? styles.textDark : styles.textLight]}>
-                      ${totals.expectedRevenue.toFixed(2)}
+                    <Text style={styles.metricLabel}>{t('expected_revenue')}</Text>
+                    <Text style={[styles.metricValue, isDark ? styles.textDark : styles.textLight]} numberOfLines={1}>
+                      {totals.expectedRevenue.toFixed(3)} {CURRENCY}
                     </Text>
                   </View>
 
                   <View style={styles.metricRow}>
-                    <Text style={styles.metricLabel}>Expenses Paid Out</Text>
-                    <Text style={[styles.metricValue, { color: '#ef4444' }]}>
-                      -${selectedReg.expenses.toFixed(2)}
-                    </Text>
-                  </View>
-
-                  <View style={styles.metricRow}>
-                    <Text style={styles.metricLabel}>Expected Cash Net</Text>
-                    <Text style={[styles.metricValue, isDark ? styles.textDark : styles.textLight]}>
-                      ${(totals.expectedRevenue - selectedReg.expenses).toFixed(2)}
-                    </Text>
-                  </View>
-
-                  <View style={styles.metricRow}>
-                    <Text style={styles.metricLabel}>Actual Cash Found</Text>
-                    <Text style={[styles.metricValue, isDark ? styles.textDark : styles.textLight]}>
-                      ${selectedReg.actual_cash.toFixed(2)}
+                    <Text style={styles.metricLabel}>{t('actual_cash_drawer')}</Text>
+                    <Text style={[styles.metricValue, isDark ? styles.textDark : styles.textLight]} numberOfLines={1}>
+                      {selectedReg.actual_cash.toFixed(3)} {CURRENCY}
                     </Text>
                   </View>
 
                   <View style={styles.divider} />
 
                   <View style={styles.metricRow}>
-                    <Text style={styles.boldLabel}>Drawer Discrepancy</Text>
+                    <Text style={styles.boldLabel}>{t('drawer_discrepancy')}</Text>
                     <Text
                       style={[
                         styles.boldValue,
@@ -467,23 +309,27 @@ export default function HistoryScreen() {
                               : '#ef4444',
                         },
                       ]}
+                      numberOfLines={1}
                     >
                       {totals.discrepancy > 0 ? '+' : ''}
-                      ${totals.discrepancy.toFixed(2)}
+                      {totals.discrepancy.toFixed(3)} {CURRENCY}
                     </Text>
                   </View>
 
                   <View style={styles.metricRow}>
-                    <Text style={styles.boldLabel}>Net Profit Made</Text>
-                    <Text style={[styles.boldValue, { color: totals.netProfit >= 0 ? '#22c55e' : '#ef4444' }]}>
-                      ${totals.netProfit.toFixed(2)}
+                    <Text style={styles.boldLabel}>{t('net_profit')}</Text>
+                    <Text 
+                      style={[styles.boldValue, { color: totals.netProfit >= 0 ? '#22c55e' : '#ef4444' }]}
+                      numberOfLines={1}
+                    >
+                      {totals.netProfit.toFixed(3)} {CURRENCY}
                     </Text>
                   </View>
                 </View>
 
                 {/* Product Detail List */}
                 <Text style={[styles.productHeaderTitle, isDark ? styles.textDark : styles.textLight]}>
-                  Product Breakdowns
+                  {t('products')}
                 </Text>
                 
                 {selectedItems.map((item) => {
@@ -493,16 +339,18 @@ export default function HistoryScreen() {
                   return (
                     <View key={item.id} style={[styles.itemCard, isDark ? styles.subCardDark : styles.subCardLight]}>
                       <View style={styles.itemCardHeader}>
-                        <Text style={[styles.itemName, isDark ? styles.textDark : styles.textLight]}>
+                        <Text numberOfLines={1} style={[styles.itemName, isDark ? styles.textDark : styles.textLight]}>
                           {item.product_name}
                         </Text>
-                        <Text style={styles.itemRevenue}>${rev.toFixed(2)}</Text>
+                        <Text style={[styles.itemRevenue, { flexShrink: 0, marginLeft: 8 }]} numberOfLines={1}>
+                          {rev.toFixed(3)} {CURRENCY}
+                        </Text>
                       </View>
                       
                       <View style={styles.itemCardStats}>
-                        <Text style={styles.statText}>Opened: {item.opening_count}</Text>
-                        <Text style={styles.statText}>Closed: {item.closing_count}</Text>
-                        <Text style={[styles.statText, { fontWeight: 'bold' }]}>Sold: {sold}</Text>
+                        <Text style={styles.statText}>{t('opening_stock')}: {item.opening_count}</Text>
+                        <Text style={styles.statText}>{t('closing_stock')}: {item.closing_count}</Text>
+                        <Text style={[styles.statText, { fontWeight: 'bold' }]}>{t('sold')}: {sold}</Text>
                       </View>
                     </View>
                   );
@@ -512,8 +360,8 @@ export default function HistoryScreen() {
 
                 {/* Action Buttons */}
                 <TouchableOpacity style={styles.pdfButton} onPress={handleGeneratePDF}>
-                  <Ionicons name="document-text" size={22} color="#fff" style={{ marginRight: 8 }} />
-                  <Text style={styles.pdfButtonText}>Generate & Share PDF Report</Text>
+                  <Ionicons name="document-text-outline" size={16} color="#fff" />
+                  <Text style={styles.pdfButtonText}>{t('export_pdf')}</Text>
                 </TouchableOpacity>
 
                 <View style={{ height: 40 }} />
@@ -570,11 +418,6 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 12,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
   },
   cardLight: {
     backgroundColor: '#ffffff',
@@ -589,10 +432,11 @@ const styles = StyleSheet.create({
   historyLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   dayBadge: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
@@ -605,15 +449,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f172a',
   },
   dayName: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
     textTransform: 'uppercase',
   },
   dateCol: {
     justifyContent: 'center',
+    flex: 1,
   },
   dateText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   statusRow: {
@@ -623,23 +468,26 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   statusText: {
-    fontSize: 12,
+    fontSize: 11,
   },
   historyRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    textAlign: 'right',
+  },
+  amountCol: {
+    alignItems: 'flex-end',
+    marginRight: 8,
   },
   amountLabel: {
     fontSize: 10,
     color: '#64748b',
     textTransform: 'uppercase',
-    marginRight: 4,
-    alignSelf: 'center',
+    marginBottom: 2,
   },
   amountValue: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
+    fontVariant: NumericFontVariant,
   },
   modalOverlay: {
     flex: 1,
@@ -668,7 +516,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 'bold',
   },
   modalSubtitle: {
@@ -694,7 +542,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   cardHeaderTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
     textTransform: 'uppercase',
     color: '#64748b',
@@ -707,12 +555,16 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   metricLabel: {
-    fontSize: 14,
-    color: '#64748b',
+    fontSize: 13,
+    color: '#475569',
+    flex: 1,
   },
   metricValue: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
+    fontVariant: NumericFontVariant,
+    flexShrink: 1,
+    textAlign: 'right',
   },
   divider: {
     height: 1,
@@ -721,13 +573,17 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   boldLabel: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
-    color: '#64748b',
+    color: '#475569',
+    flex: 1,
   },
   boldValue: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: 'bold',
+    fontVariant: NumericFontVariant,
+    flexShrink: 1,
+    textAlign: 'right',
   },
   productHeaderTitle: {
     fontSize: 16,
@@ -746,11 +602,12 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   itemName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
+    flex: 1,
   },
   itemRevenue: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#22c55e',
   },

@@ -1,6 +1,6 @@
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 
-import { Fonts, ThemeColor } from '@/constants/theme';
+import { Fonts, ThemeColor, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type ThemedTextProps = TextProps & {
@@ -14,7 +14,7 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
   return (
     <Text
       style={[
-        { color: theme[themeColor ?? 'text'] },
+        { color: theme[themeColor ?? 'text'], fontFamily: Fonts.sans },
         type === 'default' && styles.default,
         type === 'title' && styles.title,
         type === 'small' && styles.small,
@@ -32,42 +32,42 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
 
 const styles = StyleSheet.create({
   small: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 500,
+    fontSize: Typography.label,
+    lineHeight: 18,
+    fontWeight: Typography.medium,
   },
   smallBold: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 700,
+    fontSize: Typography.label,
+    lineHeight: 18,
+    fontWeight: Typography.bold,
   },
   default: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: 500,
+    fontSize: Typography.body,
+    lineHeight: 22,
+    fontWeight: Typography.regular,
   },
   title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
+    fontSize: Typography.screenTitle,
+    fontWeight: Typography.bold,
+    lineHeight: 28,
   },
   subtitle: {
-    fontSize: 32,
-    lineHeight: 44,
-    fontWeight: 600,
+    fontSize: Typography.sectionTitle,
+    lineHeight: 24,
+    fontWeight: Typography.semibold,
   },
   link: {
-    lineHeight: 30,
-    fontSize: 14,
+    lineHeight: 20,
+    fontSize: Typography.label,
   },
   linkPrimary: {
-    lineHeight: 30,
-    fontSize: 14,
+    lineHeight: 20,
+    fontSize: Typography.label,
     color: '#3c87f7',
   },
   code: {
     fontFamily: Fonts.mono,
-    fontWeight: Platform.select({ android: 700 }) ?? 500,
-    fontSize: 12,
+    fontWeight: Platform.select({ android: Typography.bold }) ?? Typography.medium,
+    fontSize: Typography.caption,
   },
 });

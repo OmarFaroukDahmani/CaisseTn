@@ -5,7 +5,7 @@
 
 import '@/global.css';
 
-import { Platform } from 'react-native';
+import { Platform, type TextStyle } from 'react-native';
 
 export const Colors = {
   light: {
@@ -60,6 +60,24 @@ export const Spacing = {
   five: 32,
   six: 64,
 } as const;
+
+export const Typography = {
+  caption: 12,
+  label: 13,
+  body: 15,
+  bodyLarge: 16,
+  sectionTitle: 18,
+  screenTitle: 22,
+  metric: 18,
+  total: 24,
+  regular: '400',
+  medium: '500',
+  semibold: '600',
+  bold: '700',
+  extraBold: '800',
+} as const;
+
+export const NumericFontVariant: NonNullable<TextStyle['fontVariant']> = ['tabular-nums'];
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;

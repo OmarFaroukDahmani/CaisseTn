@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { getSetting, setSetting } from '../services/db';
 
 export type Language = 'ar' | 'fr' | 'en';
@@ -59,6 +59,7 @@ const translations = {
     // Dashboard / Active Day
     start_new_day: 'بدء يوم جديد',
     today_date: 'تاريخ اليوم',
+    no_session: 'لا توجد جلسة',
     no_session_desc: 'لا توجد جلسة نشطة مفتوحة لليوم. جاهز لبدء العد وتسجيل المبيعات؟',
     active_session: 'جلسة نشطة',
     closed_locked: 'مغلق ومقفل',
@@ -76,10 +77,10 @@ const translations = {
     financials_cash: 'المالية ودرج النقود',
     total_expenses: 'إجمالي المصاريف',
     actual_cash_drawer: 'النقد الفعلي في الدرج',
-    expected_revenue: 'إجمالي الدخل المتوقع',
+    expected_revenue: 'الدخل المتوقع',
     expenses_today: 'المصاريف (اليوم)',
     expected_cash_register: 'النقد المتوقع في المسجل',
-    net_profit: 'صافي الربح (المبيعات - التكاليف - المصاريف)',
+    net_profit: 'صافي الربح',
     drawer_discrepancy: 'فرق الدرج',
     perfect_match: 'تطابق تام',
     cash_surplus: 'فائض نقدي',
@@ -106,18 +107,19 @@ const translations = {
     // Products Screen
     no_products_found: 'لم يتم العثور على منتجات. ابدأ بإضافة منتج!',
     cost_buying: 'التكلفة (شراء)',
-    retail_selling: 'البيع (تجزئة)',
+    retail_selling: 'سعر البيع',
     profit_margin: 'هامش الربح',
     edit_product: 'تعديل المنتج',
     add_new_product: 'إضافة منتج جديد',
     product_name: 'اسم المنتج',
+    product_name_placeholder: 'مثلاً: علبة صودا',
     save_product: 'حفظ المنتج',
     delete_product: 'حذف المنتج',
     delete_confirm: 'هل أنت متأكد أنك تريد حذف "{name}"؟ لن يؤثر هذا على السجلات اليومية السابقة.',
     cancel: 'إلغاء',
     delete: 'حذف',
-    stack_price: 'سعر الكرتونة (شراء)',
-    stack_quantity: 'العدد في الكرتونة',
+    stack_price: 'سعر الكرتونة',
+    stack_quantity: 'كمية الكرتونة',
     profit_per_stack: 'ربح الكرتونة',
 
     // POS, inventory and analytics
@@ -278,6 +280,7 @@ const translations = {
     // Dashboard / Active Day
     start_new_day: 'Commencer une nouvelle journée',
     today_date: "Date d'aujourd'hui",
+    no_session: 'Aucune session',
     no_session_desc: "Aucune session active ouverte pour aujourd'hui. Prêt à commencer le comptage et enregistrer les ventes ?",
     active_session: 'Session active',
     closed_locked: 'Clôturé et verrouillé',
@@ -295,10 +298,10 @@ const translations = {
     financials_cash: 'Finances et caisse',
     total_expenses: 'Total des dépenses',
     actual_cash_drawer: 'Espèces réelles en caisse',
-    expected_revenue: 'Revenu total attendu',
+    expected_revenue: 'Revenu attendu',
     expenses_today: "Dépenses (aujourd'hui)",
     expected_cash_register: 'Espèces attendues en caisse',
-    net_profit: 'Bénéfice net (Ventes - Coûts - Dépenses)',
+    net_profit: 'Bénéfice net',
     drawer_discrepancy: 'Écart de caisse',
     perfect_match: 'Correspondance parfaite',
     cash_surplus: 'Surplus de caisse',
@@ -325,17 +328,18 @@ const translations = {
     // Products Screen
     no_products_found: "Aucun produit trouvé. Commencez par ajouter un produit !",
     cost_buying: 'Coût (achat)',
-    retail_selling: 'Vente (détail)',
+    retail_selling: 'Prix de vente',
     profit_margin: 'Marge bénéficiaire',
     edit_product: 'Modifier le produit',
     add_new_product: 'Ajouter un nouveau produit',
     product_name: 'Nom du produit',
+    product_name_placeholder: 'Ex: Boîte de soda',
     save_product: 'Enregistrer le produit',
     delete_product: 'Supprimer le produit',
     delete_confirm: 'Êtes-vous sûr de vouloir supprimer "{name}" ? Cela n\'affectera pas les registres quotidiens précédents.',
     cancel: 'Annuler',
     delete: 'Supprimer',
-    stack_price: 'Prix du carton (achat)',
+    stack_price: 'Prix du carton',
     stack_quantity: 'Quantité par carton',
     profit_per_stack: 'Bénéfice par carton',
 
@@ -497,6 +501,7 @@ const translations = {
     // Dashboard / Active Day
     start_new_day: 'Start New Day',
     today_date: "Today's Date",
+    no_session: 'No Session',
     no_session_desc: "No active session open for today. Ready to start counting and recording sales?",
     active_session: 'Active Session',
     closed_locked: 'Closed & Locked',
@@ -514,10 +519,10 @@ const translations = {
     financials_cash: 'Finances & Cash Drawer',
     total_expenses: 'Total Expenses',
     actual_cash_drawer: 'Actual Cash in Drawer',
-    expected_revenue: 'Expected Total Revenue',
+    expected_revenue: 'Expected Revenue',
     expenses_today: 'Expenses (Today)',
     expected_cash_register: 'Expected Cash in Register',
-    net_profit: 'Net Profit (Sales - Costs - Expenses)',
+    net_profit: 'Net Profit',
     drawer_discrepancy: 'Drawer Discrepancy',
     perfect_match: 'Perfect Match',
     cash_surplus: 'Cash Surplus',
@@ -544,19 +549,20 @@ const translations = {
     // Products Screen
     no_products_found: 'No products found. Start by adding a product!',
     cost_buying: 'Cost (Buying)',
-    retail_selling: 'Selling (Retail)',
+    retail_selling: 'Selling Price',
     profit_margin: 'Profit Margin',
     edit_product: 'Edit Product',
     add_new_product: 'Add New Product',
     product_name: 'Product Name',
+    product_name_placeholder: 'e.g. Soda Box',
     save_product: 'Save Product',
     delete_product: 'Delete Product',
     delete_confirm: 'Are you sure you want to delete "{name}"? This will not affect previous daily records.',
     cancel: 'Cancel',
     delete: 'Delete',
-    stack_price: 'Stack Price (Buying)',
-    stack_quantity: 'Quantity per Stack',
-    profit_per_stack: 'Profit per Stack',
+    stack_price: 'Box Price',
+    stack_quantity: 'Box Quantity',
+    profit_per_stack: 'Profit per Box',
 
     // POS, inventory and analytics
     pos_register: 'POS Register',
@@ -675,14 +681,10 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>('ar');
-
-  useEffect(() => {
+  const [language, setLanguageState] = useState<Language>(() => {
     const saved = getSetting('app_language') as Language;
-    if (saved && translations[saved]) {
-      setLanguageState(saved);
-    }
-  }, []);
+    return saved && saved in translations ? saved : 'ar';
+  });
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);

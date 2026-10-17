@@ -111,7 +111,8 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     padding: 24,
     alignItems: 'center',
-    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
   },
   cardDark: {
     backgroundColor: '#1e293b',

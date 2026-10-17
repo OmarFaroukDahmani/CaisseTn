@@ -11,20 +11,24 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getCurrency, useLanguage } from '../constants/translations';
 import { getZReport, ZReport } from '../services/db';
+import { NumericFontVariant, Typography } from '../constants/theme';
+import {
+  generateAndSharePdf,
+  getShopProfile,
+  buildSummaryCards,
+  buildDataTable,
+  buildSectionTitle,
+  escapeHtml,
+} from '../services/pdfTemplate';
 
 const localDate = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 };
-
-const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-}[char] || char));
 
 export default function AnalyticsScreen() {
   const isDark = useColorScheme() === 'dark';
@@ -49,8 +53,14 @@ export default function AnalyticsScreen() {
 
   const exportCsv = async () => {
     if (!report) return;
+    const shop = getShopProfile();
     const rows: (string | number)[][] = [
+      [shop.name || 'Hsabi', ''],
+      [shop.address, ''],
+      [shop.phone, ''],
+      [],
       [t('z_report'), date],
+      [],
       [t('gross_revenue'), report.grossRevenue],
       [t('net_revenue'), report.netRevenue],
       [t('tax_breakdown'), report.taxTotal],
@@ -77,7 +87,8 @@ export default function AnalyticsScreen() {
     const csv = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\r\n');
     try {
       if (!FileSystem.documentDirectory) throw new Error('Document storage is not available.');
-      const uri = `${FileSystem.documentDirectory}z-report-${date}.csv`;
+      const fileName = shop.name ? `${shop.name}-z-report-${date}` : `z-report-${date}`;
+      const uri = `${FileSystem.documentDirectory}${fileName}.csv`;
       await FileSystem.writeAsStringAsync(uri, `\uFEFF${csv}`);
       await Sharing.shareAsync(uri, { mimeType: 'text/csv', UTI: 'public.comma-separated-values-text' });
     } catch (error) {
@@ -88,34 +99,85 @@ export default function AnalyticsScreen() {
 
   const exportPdf = async () => {
     if (!report) return;
-    const payments = report.salesByPaymentType.map((item) =>
-      `<tr><td>${escapeHtml(item.payment_method)}</td><td>${item.amount.toFixed(3)}</td></tr>`).join('');
-    const products = report.topItems.map((item) =>
-      `<tr><td>${escapeHtml(item.product_name)}</td><td>${item.quantity_sold}</td><td>${item.revenue.toFixed(3)}</td><td>${item.margin_percent.toFixed(2)}%</td></tr>`).join('');
-    const hours = report.peakHours.map((item) =>
-      `<tr><td>${String(item.hour).padStart(2, '0')}:00</td><td>${item.sales_total.toFixed(3)}</td><td>${item.order_count}</td></tr>`).join('');
-    const html = `<!doctype html><html><head><meta charset="utf-8"><style>
-      body{font-family:Arial,sans-serif;color:#0f172a;padding:24px}h1{color:#0369a1}
-      .grid{display:flex;flex-wrap:wrap;gap:12px}.card{background:#f1f5f9;padding:14px;border-radius:8px;min-width:150px}
-      table{width:100%;border-collapse:collapse;margin:18px 0}td,th{border-bottom:1px solid #cbd5e1;padding:8px;text-align:left}
-      </style></head><body><h1>${escapeHtml(t('z_report'))} · ${date}</h1>
-      <div class="grid"><div class="card">${escapeHtml(t('gross_revenue'))}<h2>${report.grossRevenue.toFixed(3)} ${currency}</h2></div>
-      <div class="card">${escapeHtml(t('net_revenue'))}<h2>${report.netRevenue.toFixed(3)} ${currency}</h2></div>
-      <div class="card">${escapeHtml(t('tax_breakdown'))}<h2>${report.taxTotal.toFixed(3)} ${currency}</h2></div>
-      <div class="card">${escapeHtml(t('expected_cash'))}<h2>${report.expectedCash.toFixed(3)} ${currency}</h2></div>
-      <div class="card">${escapeHtml(t('counted_cash'))}<h2>${report.actualCash === null ? '—' : report.actualCash.toFixed(3) + ' ' + currency}</h2></div>
-      <div class="card">${escapeHtml(t('variance'))}<h2>${report.cashDrawerDiscrepancy.toFixed(3)} ${currency}</h2></div></div>
-      <h2>${escapeHtml(t('sales_by_payment'))}</h2><table>${payments}</table>
-      <h2>${escapeHtml(t('top_items'))}</h2><table><tr><th>Item</th><th>Qty</th><th>Revenue</th><th>Margin</th></tr>${products}</table>
-      <h2>${escapeHtml(t('tax_breakdown'))}</h2><table>${report.taxBreakdown.map((item) => `<tr><td>${(item.tax_rate * 100).toFixed(2)}%</td><td>${item.taxable_amount.toFixed(3)}</td><td>${item.tax_amount.toFixed(3)}</td></tr>`).join('')}</table>
-      <h2>${escapeHtml(t('peak_hours'))}</h2><table>${hours}</table>
-      </body></html>`;
+    const shop = getShopProfile();
+    const direction = language === 'ar' ? 'rtl' : 'ltr';
+
+    const summaryCards = buildSummaryCards([
+      { label: t('gross_revenue'), value: `${report.grossRevenue.toFixed(3)} ${currency}`, color: 'blue', highlight: true },
+      { label: t('net_revenue'), value: `${report.netRevenue.toFixed(3)} ${currency}`, color: 'green' },
+      { label: t('tax_breakdown'), value: `${report.taxTotal.toFixed(3)} ${currency}` },
+      { label: t('expected_cash'), value: `${report.expectedCash.toFixed(3)} ${currency}` },
+      { label: t('counted_cash'), value: report.actualCash === null ? '—' : `${report.actualCash.toFixed(3)} ${currency}` },
+      { label: t('variance'), value: `${report.cashDrawerDiscrepancy.toFixed(3)} ${currency}`, color: report.cashDrawerDiscrepancy >= 0 ? 'green' : 'red' },
+    ]);
+
+    const paymentsTable = buildDataTable(
+      [t('sales_by_payment'), t('amount')],
+      report.salesByPaymentType.map((item) => [
+        t(item.payment_method === 'CASH' ? 'cash' : item.payment_method === 'CARD' ? 'card' : item.payment_method === 'MOBILE_PAYMENT' ? 'mobile_payment' : 'delivery_app'),
+        `${item.amount.toFixed(3)} ${currency}`,
+      ]),
+      { align: ['start', 'end'] }
+    );
+
+    const productsTable = buildDataTable(
+      [t('top_items'), t('sales_volume'), t('gross_revenue'), t('profit_margin_percent')],
+      report.topItems.map((item) => [
+        escapeHtml(item.product_name),
+        String(item.quantity_sold),
+        `${item.revenue.toFixed(3)} ${currency}`,
+        `${item.margin_percent.toFixed(2)}%`,
+      ]),
+      { align: ['start', 'center', 'end', 'end'] }
+    );
+
+    const taxTable = buildDataTable(
+      [t('tax_rate'), t('net_revenue'), t('tax_amount')],
+      report.taxBreakdown.map((item) => [
+        `${(item.tax_rate * 100).toFixed(2)}%`,
+        `${item.taxable_amount.toFixed(3)} ${currency}`,
+        `${item.tax_amount.toFixed(3)} ${currency}`,
+      ]),
+      { align: ['center', 'end', 'end'] }
+    );
+
+    const hoursTable = buildDataTable(
+      [t('peak_hours'), t('gross_revenue'), t('orders_count')],
+      report.peakHours.map((item) => [
+        `${String(item.hour).padStart(2, '0')}:00`,
+        `${item.sales_total.toFixed(3)} ${currency}`,
+        String(item.order_count),
+      ]),
+      { align: ['center', 'end', 'end'] }
+    );
+
+    const bodyContent = `
+      ${summaryCards}
+      ${buildSectionTitle(t('sales_by_payment'))}
+      ${paymentsTable}
+      ${buildSectionTitle(t('top_items'))}
+      ${productsTable}
+      ${buildSectionTitle(t('tax_breakdown'))}
+      ${taxTable}
+      ${buildSectionTitle(t('peak_hours'))}
+      ${hoursTable}
+    `;
+
     try {
-      const file = await Print.printToFileAsync({ html });
-      if (!FileSystem.documentDirectory) throw new Error('Document storage is not available.');
-      const shareUri = `${FileSystem.documentDirectory}z-report-${Date.now()}.pdf`;
-      await FileSystem.copyAsync({ from: file.uri, to: shareUri });
-      await Sharing.shareAsync(shareUri, { UTI: '.pdf', mimeType: 'application/pdf' });
+      await generateAndSharePdf({
+        direction,
+        language,
+        shopName: shop.name,
+        shopAddress: shop.address,
+        shopPhone: shop.phone,
+        logoUri: shop.logoUri,
+        docTitle: t('z_report'),
+        docSubtitle: '',
+        date,
+        bodyContent,
+        footerText: `${new Date().toLocaleDateString(language === 'ar' ? 'ar-TN' : language === 'fr' ? 'fr-FR' : 'en-US')} · ${t('z_report')}`,
+        fileName: shop.name ? `${shop.name}-z-report` : 'z-report',
+      });
     } catch (error) {
       console.error('Could not export PDF:', error);
       Alert.alert(t('db_error'), String(error));
@@ -228,30 +290,30 @@ const styles = StyleSheet.create({
   pageDark: { backgroundColor: '#0f172a' },
   content: { padding: 16, gap: 12, paddingBottom: 32 },
   header: { gap: 10 },
-  title: { color: '#0f172a', fontSize: 22, fontWeight: '800' },
+  title: { color: '#0f172a', fontSize: Typography.screenTitle, fontWeight: Typography.extraBold },
   dateControl: { flexDirection: 'row', gap: 8 },
   dateInput: { flex: 1, borderRadius: 9, borderWidth: 1, borderColor: '#cbd5e1', backgroundColor: '#fff', color: '#0f172a', paddingHorizontal: 12 },
   inputDark: { backgroundColor: '#1e293b', color: '#f8fafc', borderColor: '#475569' },
   refreshButton: { backgroundColor: '#0284c7', borderRadius: 9, width: 46, alignItems: 'center', justifyContent: 'center' },
   summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   summaryCard: { flexGrow: 1, flexBasis: '46%', backgroundColor: '#fff', padding: 14, borderRadius: 12, minHeight: 84, justifyContent: 'space-between' },
-  summaryValue: { color: '#0f172a', fontWeight: '800', fontSize: 16, marginTop: 9 },
+  summaryValue: { color: '#0f172a', fontWeight: Typography.extraBold, fontSize: Typography.metric, marginTop: 9, fontVariant: NumericFontVariant },
   card: { backgroundColor: '#fff', padding: 15, borderRadius: 12, gap: 8 },
   cardDark: { backgroundColor: '#1e293b' },
-  sectionTitle: { color: '#0f172a', fontWeight: '700', fontSize: 16, marginBottom: 2 },
+  sectionTitle: { color: '#0f172a', fontWeight: Typography.bold, fontSize: Typography.bodyLarge, marginBottom: 2 },
   textDark: { color: '#f8fafc' },
-  detail: { color: '#334155', fontSize: 14 },
-  strong: { fontWeight: '700' },
+  detail: { color: '#334155', fontSize: Typography.body },
+  strong: { fontWeight: Typography.bold, fontVariant: NumericFontVariant },
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   itemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
   itemInfo: { flex: 1 },
-  itemName: { color: '#0f172a', fontSize: 14, fontWeight: '700' },
-  muted: { color: '#64748b', fontSize: 12 },
+  itemName: { color: '#0f172a', fontSize: Typography.body, fontWeight: Typography.bold },
+  muted: { color: '#475569', fontSize: Typography.caption },
   chartRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  hourLabel: { width: 42, color: '#475569', fontSize: 12 },
+  hourLabel: { width: 42, color: '#334155', fontSize: Typography.caption, fontVariant: NumericFontVariant },
   barTrack: { flex: 1, height: 12, backgroundColor: '#e2e8f0', borderRadius: 7, overflow: 'hidden' },
   bar: { height: '100%', backgroundColor: '#0284c7', borderRadius: 7 },
-  chartValue: { width: 92, textAlign: 'right', color: '#475569', fontSize: 11 },
+  chartValue: { width: 92, textAlign: 'right', color: '#334155', fontSize: Typography.caption, fontVariant: NumericFontVariant },
   exportRow: { flexDirection: 'row', gap: 9 },
   exportButton: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, padding: 12, borderRadius: 9, backgroundColor: '#0369a1' },
   exportText: { color: '#fff', fontWeight: '700', fontSize: 13 },

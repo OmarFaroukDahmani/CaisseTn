@@ -1,5 +1,5 @@
 import { DarkTheme, DefaultTheme, ThemeProvider, Stack, useRouter } from 'expo-router';
-import { useColorScheme, I18nManager, TouchableOpacity } from 'react-native';
+import { useColorScheme, I18nManager, TouchableOpacity, View } from 'react-native';
 import { useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { initDatabase } from '../services/db';
@@ -10,6 +10,12 @@ function RootLayoutNav() {
   const colorScheme = useColorScheme();
   const { t, isRTL } = useLanguage();
   const router = useRouter();
+
+  useEffect(() => {
+    I18nManager.allowRTL(true);
+    I18nManager.forceRTL(isRTL);
+  }, [isRTL]);
+
   const renderBackButton = () => (
     <TouchableOpacity
       onPress={() => {
@@ -30,43 +36,42 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack
-        screenOptions={{
-          headerShown: true,
-          headerStyle: {
-            elevation: 1,
-            shadowOpacity: 0.1,
-          },
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
-        }}
-      >
-        <Stack.Screen
-          name="(tabs)"
-          options={{
-            headerShown: false,
+      <View style={{ flex: 1, direction: isRTL ? 'rtl' : 'ltr' }}>
+        <Stack
+          screenOptions={{
+            headerShown: true,
+            headerTitleStyle: {
+              fontWeight: 'bold',
+            },
+            headerTitleAlign: isRTL ? 'right' : 'left',
           }}
-        />
-        <Stack.Screen
-          name="analytics"
-          options={{
-            title: t('z_report'),
-            headerBackTitle: t('profile'),
-            headerLeft: renderBackButton,
-            gestureEnabled: true,
-          }}
-        />
-        <Stack.Screen
-          name="history"
-          options={{
-            title: t('closed_registers'),
-            headerBackTitle: t('profile'),
-            headerLeft: renderBackButton,
-            gestureEnabled: true,
-          }}
-        />
-      </Stack>
+        >
+          <Stack.Screen
+            name="(tabs)"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="analytics"
+            options={{
+              title: t('z_report'),
+              headerBackTitle: t('profile'),
+              headerLeft: renderBackButton,
+              gestureEnabled: true,
+            }}
+          />
+          <Stack.Screen
+            name="history"
+            options={{
+              title: t('closed_registers'),
+              headerBackTitle: t('profile'),
+              headerLeft: renderBackButton,
+              gestureEnabled: true,
+            }}
+          />
+        </Stack>
+      </View>
     </ThemeProvider>
   );
 }
@@ -74,11 +79,6 @@ function RootLayoutNav() {
 export default function RootLayout() {
   useEffect(() => {
     initDatabase();
-
-    if (!I18nManager.isRTL) {
-      I18nManager.allowRTL(true);
-      I18nManager.forceRTL(true);
-    }
   }, []);
 
   return (

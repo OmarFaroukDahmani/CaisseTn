@@ -16,6 +16,7 @@ import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getProducts, createProduct, updateProduct, deleteProduct, Product } from '../../services/db';
 import { useLanguage, getCurrency } from '../../constants/translations';
+import { NumericFontVariant, Typography } from '../../constants/theme';
 
 export default function ProductsScreen() {
   const colorScheme = useColorScheme();
@@ -132,14 +133,14 @@ export default function ProductsScreen() {
   };
 
   const renderProductItem = ({ item }: { item: Product }) => {
-    const stackPrice = item.stack_price || 0;
-    const stackQty = item.stack_quantity || 1;
-    const profitPerStack = (item.selling_price * stackQty) - stackPrice;
+    const boxPrice = item.stack_price || 0;
+    const boxQty = item.stack_quantity || 1;
+    const profitPerBox = (item.selling_price * boxQty) - boxPrice;
 
     return (
       <View style={[styles.card, isDark ? styles.cardDark : styles.cardLight]}>
         <View style={styles.cardHeader}>
-          <Text style={[styles.productName, isDark ? styles.textDark : styles.textLight]}>{item.name}</Text>
+          <Text numberOfLines={1} style={[styles.productName, isDark ? styles.textDark : styles.textLight]}>{item.name}</Text>
           <View style={styles.actions}>
             <TouchableOpacity onPress={() => openEditModal(item)} style={styles.actionButton}>
               <Ionicons name="pencil" size={18} color={isDark ? '#38bdf8' : '#0284c7'} />
@@ -150,33 +151,34 @@ export default function ProductsScreen() {
           </View>
         </View>
         
-        <View style={styles.priceRow}>
-          <View style={styles.priceItem}>
-            <Text style={styles.priceLabel}>{t('stack_price')}</Text>
-            <Text style={[styles.priceValue, isDark ? styles.textDark : styles.textLight]}>
-              {stackPrice.toFixed(3)} {CURRENCY}
+        <View style={styles.infoRow}>
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>{t('stack_price')}</Text>
+            <Text style={[styles.infoValue, isDark ? styles.textDark : styles.textLight]} numberOfLines={1}>
+              {boxPrice.toFixed(3)} {CURRENCY}
             </Text>
           </View>
-          <View style={styles.priceItem}>
-            <Text style={styles.priceLabel}>{t('stack_quantity')}</Text>
-            <Text style={[styles.priceValue, isDark ? styles.textDark : styles.textLight]}>
-              {stackQty}
+          <View style={styles.infoDivider} />
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>{t('stack_quantity')}</Text>
+            <Text style={[styles.infoValue, isDark ? styles.textDark : styles.textLight]}>
+              {boxQty}
             </Text>
           </View>
-          <View style={styles.priceItem}>
-            <Text style={styles.priceLabel}>{t('retail_selling')}</Text>
-            <Text style={[styles.priceValue, isDark ? styles.textDark : styles.textLight]}>
+          <View style={styles.infoDivider} />
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>{t('retail_selling')}</Text>
+            <Text style={[styles.infoValue, isDark ? styles.textDark : styles.textLight]} numberOfLines={1}>
               {item.selling_price.toFixed(3)} {CURRENCY}
             </Text>
           </View>
         </View>
-        <View style={styles.priceRow}>
-          <View style={styles.priceItem}>
-            <Text style={styles.priceLabel}>{t('profit_per_stack')}</Text>
-            <Text style={[styles.marginValue, { color: profitPerStack >= 0 ? '#22c55e' : '#ef4444' }]}>
-              {profitPerStack.toFixed(3)} {CURRENCY}
-            </Text>
-          </View>
+        
+        <View style={styles.profitRow}>
+          <Text style={styles.profitLabel}>{t('profit_per_stack')}</Text>
+          <Text style={[styles.profitValue, { color: profitPerBox >= 0 ? '#22c55e' : '#ef4444' }]}>
+            {profitPerBox.toFixed(3)} {CURRENCY}
+          </Text>
         </View>
       </View>
     );
@@ -229,7 +231,7 @@ export default function ProductsScreen() {
               <TextInput
                 value={name}
                 onChangeText={setName}
-                placeholder="مثلاً: علبة صودا"
+                placeholder={t('product_name_placeholder')}
                 placeholderTextColor="#888"
                 style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
               />
@@ -300,25 +302,27 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
   },
   productName: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: Typography.sectionTitle,
+    fontWeight: Typography.bold,
     textAlign: 'right',
   },
   priceLabel: {
-    fontSize: 12,
-    color: '#64748b',
+    fontSize: Typography.caption,
+    color: '#475569',
     marginBottom: 4,
     textAlign: 'right',
   },
   priceValue: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: Typography.bodyLarge,
+    fontWeight: Typography.bold,
     textAlign: 'right',
+    fontVariant: NumericFontVariant,
   },
   marginValue: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: Typography.bodyLarge,
+    fontWeight: Typography.bold,
     textAlign: 'right',
+    fontVariant: NumericFontVariant,
   },
   modalTitle: {
     fontSize: 20,
@@ -346,11 +350,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   cardLight: {
     backgroundColor: '#ffffff',
@@ -366,7 +365,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#cbd5e1',
   },
   actions: {
     flexDirection: 'row',
@@ -375,12 +377,47 @@ const styles = StyleSheet.create({
     marginLeft: 16,
     padding: 4,
   },
-  priceRow: {
+  infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  priceItem: {
+  infoItem: {
     flex: 1,
+    alignItems: 'center',
+  },
+  infoDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: '#e2e8f0',
+  },
+  infoLabel: {
+    fontSize: 11,
+    color: '#64748b',
+    marginBottom: 4,
+    fontWeight: '600',
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  profitRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#e2e8f0',
+  },
+  profitLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  profitValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   fab: {
     position: 'absolute',
@@ -392,11 +429,8 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+    borderWidth: 1,
+    borderColor: '#0369a1',
   },
   emptyContainer: {
     flex: 1,

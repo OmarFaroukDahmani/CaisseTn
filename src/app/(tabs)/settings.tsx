@@ -26,8 +26,8 @@ import {
   syncRegisterToGoogle,
 } from '../../services/googleSheets';
 import { getCurrency, useLanguage, Language } from '../../constants/translations';
+import { Typography } from '../../constants/theme';
 
-// Complete authentication sessions on web
 WebBrowser.maybeCompleteAuthSession();
 
 export default function ProfileScreen() {
@@ -45,19 +45,16 @@ export default function ProfileScreen() {
   const [restaurantPhone, setRestaurantPhone] = useState(() => getSetting('restaurant_phone') || '');
   const [currencySymbol, setCurrencySymbol] = useState(() => getSetting('currency_symbol') || getCurrency(language));
   const [restaurantLogoUri, setRestaurantLogoUri] = useState<string | null>(() => getSetting('restaurant_logo_uri'));
-  const [settingsOffset, setSettingsOffset] = useState<number | null>(null);
-  const profileScrollRef = React.useRef<ScrollView>(null);
-  
-  // Custom Client IDs for self-hosting (optional for users)
-  const [customWebClientId, setCustomWebClientId] = useState(() => getSetting('custom_web_client_id') || '');
-  const [manualTokenInput, setManualTokenInput] = useState('');
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editName, setEditName] = useState(restaurantName);
+  const [editAddress, setEditAddress] = useState(restaurantAddress);
+  const [editPhone, setEditPhone] = useState(restaurantPhone);
+  const [editCurrency, setEditCurrency] = useState(currencySymbol);
 
-  // Initialize expo-auth-session with custom or default IDs
   const [request, response, promptAsync] = Google.useAuthRequest({
     androidClientId: '768910411894-dummyandroid.apps.googleusercontent.com',
     iosClientId: '768910411894-dummyios.apps.googleusercontent.com',
-    webClientId: customWebClientId || '768910411894-dummyweb.apps.googleusercontent.com',
+    webClientId: '768910411894-dummyweb.apps.googleusercontent.com',
     scopes: [
       'https://www.googleapis.com/auth/spreadsheets',
       'https://www.googleapis.com/auth/drive.file'
@@ -74,12 +71,9 @@ export default function ProfileScreen() {
   const handleGoogleLoginSuccess = useCallback(async (accessToken: string) => {
     try {
       setSetting('google_access_token', accessToken);
-      
-      // Fetch user profile info from Google API
       const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-      
       if (res.ok) {
         const profile = await res.json();
         setSetting('google_user_name', profile.name || 'Google User');
@@ -88,7 +82,6 @@ export default function ProfileScreen() {
         setSetting('google_user_name', 'Sync Account');
         setSetting('google_user_email', 'connected@gmail.com');
       }
-      
       Alert.alert('Google Connected', 'Your Google account was linked successfully.');
       refreshSyncStatus();
     } catch (error) {
@@ -102,20 +95,6 @@ export default function ProfileScreen() {
       void handleGoogleLoginSuccess(response.authentication.accessToken);
     }
   }, [response, handleGoogleLoginSuccess]);
-
-  const handleManualTokenSubmit = () => {
-    if (!manualTokenInput.trim()) {
-      Alert.alert('Error', 'Please enter a valid Google OAuth Access Token.');
-      return;
-    }
-    handleGoogleLoginSuccess(manualTokenInput.trim());
-    setManualTokenInput('');
-  };
-
-  const handleSaveCustomWebId = () => {
-    setSetting('custom_web_client_id', customWebClientId.trim());
-    Alert.alert('Saved', 'Custom Web Client ID saved successfully.');
-  };
 
   const handleDisconnect = () => {
     Alert.alert('Disconnect Google', 'Are you sure you want to stop syncing and sign out?', [
@@ -132,28 +111,22 @@ export default function ProfileScreen() {
     ]);
   };
 
-  // Full manual backup flow
   const handleFullBackup = async () => {
     if (!connected) {
       Alert.alert('Not Connected', 'Please sign in with Google to sync backups.');
       return;
     }
-
     try {
       const history = getRegisterHistory().filter((r) => r.is_closed === 1);
-      
       if (history.length === 0) {
         Alert.alert('No Data', 'No closed daily registers are available to back up.');
         return;
       }
-
       Alert.alert('Backup in Progress', `Backing up ${history.length} historical closed days. Please wait...`);
-
       let successCount = 0;
       for (const reg of history) {
         const details = getRegisterDetails(reg.id);
         if (!details) continue;
-
         let expectedRevenue = 0;
         let expectedCost = 0;
         details.items.forEach((item) => {
@@ -161,11 +134,9 @@ export default function ProfileScreen() {
           expectedRevenue += sold * (item.selling_price || 0);
           expectedCost += sold * (item.cost_price || 0);
         });
-
         const grossProfit = Math.max(0, expectedRevenue - expectedCost);
         const netProfit = grossProfit - reg.expenses;
         const discrepancy = reg.actual_cash - (expectedRevenue - reg.expenses);
-
         const syncSuccess = await syncRegisterToGoogle({
           date: reg.date,
           expenses: reg.expenses,
@@ -175,10 +146,8 @@ export default function ProfileScreen() {
           net_profit: netProfit,
           discrepancy: discrepancy,
         });
-
         if (syncSuccess) successCount++;
       }
-
       Alert.alert('Backup Complete', `Successfully backed up ${successCount}/${history.length} daily logs to Google Sheets.`);
       refreshSyncStatus();
     } catch (err) {
@@ -187,12 +156,29 @@ export default function ProfileScreen() {
     }
   };
 
+  const startEditingProfile = () => {
+    setEditName(restaurantName);
+    setEditAddress(restaurantAddress);
+    setEditPhone(restaurantPhone);
+    setEditCurrency(currencySymbol);
+    setIsEditingProfile(true);
+  };
+
+  const cancelEditingProfile = () => {
+    setIsEditingProfile(false);
+  };
+
   const saveRestaurantProfile = () => {
     try {
-      setSetting('restaurant_name', restaurantName.trim());
-      setSetting('restaurant_address', restaurantAddress.trim());
-      setSetting('restaurant_phone', restaurantPhone.trim());
-      setSetting('currency_symbol', currencySymbol.trim());
+      setSetting('restaurant_name', editName.trim());
+      setSetting('restaurant_address', editAddress.trim());
+      setSetting('restaurant_phone', editPhone.trim());
+      setSetting('currency_symbol', editCurrency.trim());
+      setRestaurantName(editName.trim());
+      setRestaurantAddress(editAddress.trim());
+      setRestaurantPhone(editPhone.trim());
+      setCurrencySymbol(editCurrency.trim());
+      setIsEditingProfile(false);
       Alert.alert(t('saved'), t('profile_saved'));
     } catch (error) {
       console.error('Could not save restaurant profile:', error);
@@ -209,18 +195,15 @@ export default function ProfileScreen() {
 
   const chooseRestaurantImage = async (source: 'camera' | 'gallery') => {
     if (!(await showPermissionRationale())) return;
-
     try {
       let permission = source === 'camera'
         ? await ImagePicker.getCameraPermissionsAsync()
         : await ImagePicker.getMediaLibraryPermissionsAsync();
-
       if (!permission.granted) {
         permission = source === 'camera'
           ? await ImagePicker.requestCameraPermissionsAsync()
           : await ImagePicker.requestMediaLibraryPermissionsAsync();
       }
-
       if (!permission.granted) {
         Alert.alert(t('permission_denied_title'), t('permission_denied_message'), [
           { text: t('cancel'), style: 'cancel' },
@@ -236,18 +219,14 @@ export default function ProfileScreen() {
         ]);
         return;
       }
-
       const result = source === 'camera'
         ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.85 })
         : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.85 });
       const asset = result.assets?.[0];
       if (result.canceled || !asset) return;
       if (!FileSystem.documentDirectory) throw new Error('Document storage is not available.');
-
       const suggestedExtension = asset.fileName?.split('.').pop() || asset.uri.split('.').pop()?.split('?')[0];
-      const extension = suggestedExtension && /^[a-zA-Z0-9]+$/.test(suggestedExtension)
-        ? suggestedExtension
-        : 'jpg';
+      const extension = suggestedExtension && /^[a-zA-Z0-9]+$/.test(suggestedExtension) ? suggestedExtension : 'jpg';
       const destination = `${FileSystem.documentDirectory}restaurant-branding-${Date.now()}.${extension}`;
       await FileSystem.copyAsync({ from: asset.uri, to: destination });
       setSetting('restaurant_logo_uri', destination);
@@ -266,122 +245,114 @@ export default function ProfileScreen() {
     ]);
   };
 
-  const openAppSettings = () => {
-    if (settingsOffset !== null) {
-      profileScrollRef.current?.scrollTo({ y: settingsOffset, animated: true });
-    }
-  };
-
   return (
-    <ScrollView ref={profileScrollRef} style={[styles.container, isDark ? styles.bgDark : styles.bgLight]}>
-      <TouchableOpacity
-        style={styles.brandCover}
-        onPress={showImageSourceOptions}
-        accessibilityRole="button"
-        accessibilityLabel={t('restaurant_image')}
-      >
-        {restaurantLogoUri ? (
-          <Image source={{ uri: restaurantLogoUri }} style={styles.brandCoverImage} />
-        ) : (
-          <Ionicons name="restaurant-outline" size={48} color="#fff" />
+    <ScrollView style={[styles.container, isDark ? styles.bgDark : styles.bgLight]}>
+      <View style={[styles.profileHeader, isDark ? styles.cardDark : styles.cardLight]}>
+        <TouchableOpacity style={styles.avatarContainer} onPress={showImageSourceOptions}>
+          {restaurantLogoUri ? (
+            <Image source={{ uri: restaurantLogoUri }} style={styles.avatarImage} />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <Ionicons name="restaurant-outline" size={40} color="#fff" />
+            </View>
+          )}
+          <View style={styles.cameraBadge}>
+            <Ionicons name="camera" size={14} color="#fff" />
+          </View>
+        </TouchableOpacity>
+        <View style={styles.profileInfo}>
+          <Text style={[styles.profileName, isDark ? styles.textDark : styles.textLight]}>
+            {restaurantName || t('profile')}
+          </Text>
+          {restaurantPhone ? (
+            <Text style={styles.profileDetail}>{restaurantPhone}</Text>
+          ) : null}
+          {restaurantAddress ? (
+            <Text style={styles.profileDetail}>{restaurantAddress}</Text>
+          ) : null}
+        </View>
+        {!isEditingProfile && (
+          <TouchableOpacity style={styles.editButton} onPress={startEditingProfile}>
+            <Ionicons name="pencil" size={18} color="#0284c7" />
+          </TouchableOpacity>
         )}
-        <View style={styles.brandCoverOverlay}>
-          <Text style={styles.brandCoverTitle}>{restaurantName || t('profile')}</Text>
-          <View style={styles.changeImageLabel}>
-            <Ionicons name="camera-outline" size={16} color="#fff" />
-            <Text style={styles.changeImageText}>{t('change_restaurant_image')}</Text>
+      </View>
+
+      {isEditingProfile && (
+        <View style={[styles.card, isDark ? styles.cardDark : styles.cardLight]}>
+          <Text style={[styles.profileFieldLabel, isDark ? styles.textDark : styles.textLight]}>{t('restaurant_name')}</Text>
+          <TextInput
+            value={editName}
+            onChangeText={setEditName}
+            placeholder={t('restaurant_name')}
+            placeholderTextColor="#888"
+            style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
+          />
+          <Text style={[styles.profileFieldLabel, isDark ? styles.textDark : styles.textLight]}>{t('restaurant_address')}</Text>
+          <TextInput
+            value={editAddress}
+            onChangeText={setEditAddress}
+            placeholder={t('restaurant_address')}
+            placeholderTextColor="#888"
+            style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
+          />
+          <Text style={[styles.profileFieldLabel, isDark ? styles.textDark : styles.textLight]}>{t('restaurant_phone')}</Text>
+          <TextInput
+            value={editPhone}
+            onChangeText={setEditPhone}
+            placeholder={t('restaurant_phone')}
+            placeholderTextColor="#888"
+            keyboardType="phone-pad"
+            style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
+          />
+          <Text style={[styles.profileFieldLabel, isDark ? styles.textDark : styles.textLight]}>{t('currency_symbol')}</Text>
+          <TextInput
+            value={editCurrency}
+            onChangeText={setEditCurrency}
+            placeholder="TND"
+            placeholderTextColor="#888"
+            style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
+          />
+          <View style={styles.editActions}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={cancelEditingProfile}>
+              <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.saveBtn} onPress={saveRestaurantProfile}>
+              <Text style={styles.saveBtnText}>{t('save')}</Text>
+            </TouchableOpacity>
           </View>
         </View>
-      </TouchableOpacity>
-
-      <View style={styles.sectionHeader}>
-        <Ionicons name="business-outline" size={20} color={isDark ? '#38bdf8' : '#0284c7'} />
-        <Text style={[styles.sectionTitle, isDark ? styles.textDark : styles.textLight]}>{t('restaurant_profile')}</Text>
-      </View>
-      <View style={[styles.card, isDark ? styles.cardDark : styles.cardLight]}>
-        <Text style={[styles.profileFieldLabel, isDark ? styles.textDark : styles.textLight]}>{t('restaurant_name')}</Text>
-        <TextInput
-          value={restaurantName}
-          onChangeText={setRestaurantName}
-          placeholder={t('restaurant_name')}
-          placeholderTextColor="#888"
-          style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
-        />
-        <Text style={[styles.profileFieldLabel, isDark ? styles.textDark : styles.textLight]}>{t('restaurant_address')}</Text>
-        <TextInput
-          value={restaurantAddress}
-          onChangeText={setRestaurantAddress}
-          placeholder={t('restaurant_address')}
-          placeholderTextColor="#888"
-          style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
-        />
-        <Text style={[styles.profileFieldLabel, isDark ? styles.textDark : styles.textLight]}>{t('restaurant_phone')}</Text>
-        <TextInput
-          value={restaurantPhone}
-          onChangeText={setRestaurantPhone}
-          placeholder={t('restaurant_phone')}
-          placeholderTextColor="#888"
-          keyboardType="phone-pad"
-          style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
-        />
-        <Text style={[styles.profileFieldLabel, isDark ? styles.textDark : styles.textLight]}>{t('currency_symbol')}</Text>
-        <TextInput
-          value={currencySymbol}
-          onChangeText={setCurrencySymbol}
-          placeholder="TND"
-          placeholderTextColor="#888"
-          style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
-        />
-        <TouchableOpacity style={styles.saveBtn} onPress={saveRestaurantProfile}>
-          <Text style={styles.saveBtnText}>{t('save_profile')}</Text>
-        </TouchableOpacity>
-      </View>
+      )}
 
       <View style={styles.sectionHeader}>
         <Ionicons name="grid-outline" size={20} color={isDark ? '#38bdf8' : '#0284c7'} />
         <Text style={[styles.sectionTitle, isDark ? styles.textDark : styles.textLight]}>{t('quick_access')}</Text>
       </View>
-      <View style={[styles.menuCard, isDark ? styles.cardDark : styles.cardLight]}>
-        <TouchableOpacity style={styles.menuRow} onPress={() => router.push('/analytics')}>
-          <Ionicons name="bar-chart-outline" size={22} color="#0284c7" />
-          <View style={styles.menuTextColumn}>
-            <Text style={[styles.menuLabel, isDark ? styles.textDark : styles.textLight]}>{t('analytics_reports')}</Text>
-            <Text style={styles.menuDescription}>{t('analytics_reports_desc')}</Text>
+      <View style={[styles.quickAccessGrid, isDark ? styles.cardDark : styles.cardLight]}>
+        <TouchableOpacity style={styles.quickAccessItem} onPress={() => router.push('/analytics')}>
+          <View style={[styles.quickAccessIcon, { backgroundColor: '#e0f2fe' }]}>
+            <Ionicons name="bar-chart" size={24} color="#0284c7" />
           </View>
-          <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color="#94a3b8" />
+          <Text style={[styles.quickAccessLabel, isDark ? styles.textDark : styles.textLight]}>{t('analytics_reports')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.menuRow} onPress={() => router.push('/history')}>
-          <Ionicons name="time-outline" size={22} color="#0284c7" />
-          <View style={styles.menuTextColumn}>
-            <Text style={[styles.menuLabel, isDark ? styles.textDark : styles.textLight]}>{t('sales_shift_history')}</Text>
-            <Text style={styles.menuDescription}>{t('sales_shift_history_desc')}</Text>
+        <TouchableOpacity style={styles.quickAccessItem} onPress={() => router.push('/history')}>
+          <View style={[styles.quickAccessIcon, { backgroundColor: '#fce7f3' }]}>
+            <Ionicons name="time" size={24} color="#db2777" />
           </View>
-          <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color="#94a3b8" />
+          <Text style={[styles.quickAccessLabel, isDark ? styles.textDark : styles.textLight]}>{t('sales_shift_history')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.menuRow, styles.menuRowLast]} onPress={openAppSettings}>
-          <Ionicons name="settings-outline" size={22} color="#0284c7" />
-          <View style={styles.menuTextColumn}>
-            <Text style={[styles.menuLabel, isDark ? styles.textDark : styles.textLight]}>{t('app_settings')}</Text>
-            <Text style={styles.menuDescription}>{t('app_settings_desc')}</Text>
+        <TouchableOpacity style={styles.quickAccessItem} onPress={replayGuide}>
+          <View style={[styles.quickAccessIcon, { backgroundColor: '#d1fae5' }]}>
+            <Ionicons name="help-circle" size={24} color="#059669" />
           </View>
-          <Ionicons name="chevron-down" size={18} color="#94a3b8" />
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.menuRow, styles.menuRowLast]} onPress={replayGuide}>
-          <Ionicons name="help-circle-outline" size={22} color="#0284c7" />
-          <View style={styles.menuTextColumn}>
-            <Text style={[styles.menuLabel, isDark ? styles.textDark : styles.textLight]}>{t('rewatch_guide')}</Text>
-            <Text style={styles.menuDescription}>{t('rewatch_guide_desc')}</Text>
-          </View>
-          <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={18} color="#94a3b8" />
+          <Text style={[styles.quickAccessLabel, isDark ? styles.textDark : styles.textLight]}>{t('rewatch_guide')}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Language Section */}
-      <View style={styles.sectionHeader} onLayout={(event) => setSettingsOffset(event.nativeEvent.layout.y)}>
+      <View style={styles.sectionHeader}>
         <Ionicons name="language-outline" size={20} color={isDark ? '#38bdf8' : '#0284c7'} />
         <Text style={[styles.sectionTitle, isDark ? styles.textDark : styles.textLight]}>{t('language')}</Text>
       </View>
-
       <View style={[styles.card, isDark ? styles.cardDark : styles.cardLight]}>
         <View style={styles.languageOptions}>
           {([
@@ -414,155 +385,41 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Google Cloud Backup Section */}
       <View style={styles.sectionHeader}>
         <Ionicons name="cloud-done-outline" size={20} color={isDark ? '#38bdf8' : '#0284c7'} />
-        <Text style={[styles.sectionTitle, isDark ? styles.textDark : styles.textLight]}>Cloud Sync Backup</Text>
+        <Text style={[styles.sectionTitle, isDark ? styles.textDark : styles.textLight]}>Cloud Sync</Text>
       </View>
-
       <View style={[styles.card, isDark ? styles.cardDark : styles.cardLight]}>
         {connected ? (
           <View>
-            <View style={styles.profileRow}>
-              <View style={styles.avatar}>
-                <Ionicons name="person" size={24} color="#fff" />
+            <View style={styles.syncUserRow}>
+              <View style={styles.syncAvatar}>
+                <Ionicons name="person" size={22} color="#fff" />
               </View>
-              <View style={styles.profileInfo}>
-                <Text style={[styles.profileName, isDark ? styles.textDark : styles.textLight]}>
-                  {user?.name}
-                </Text>
-                <Text style={styles.profileEmail}>{user?.email}</Text>
+              <View style={styles.syncUserInfo}>
+                <Text style={[styles.syncUserName, isDark ? styles.textDark : styles.textLight]}>{user?.name}</Text>
+                <Text style={styles.syncUserEmail}>{user?.email}</Text>
               </View>
             </View>
-
-            <View style={styles.sheetInfoRow}>
-              <Text style={styles.sheetInfoLabel}>Target Google Sheet:</Text>
-              <Text style={[styles.sheetInfoValue, isDark ? styles.textDark : styles.textLight]} numberOfLines={1}>
-                Shop_Daily_Register_Backup
-              </Text>
-            </View>
-
-            {spreadsheetId !== 'Not created yet' && (
-              <View style={styles.sheetInfoRow}>
-                <Text style={styles.sheetInfoLabel}>Spreadsheet ID:</Text>
-                <Text style={styles.sheetIdText} numberOfLines={1}>
-                  {spreadsheetId}
-                </Text>
-              </View>
-            )}
-
-            <View style={styles.actionsDivider} />
-
             <TouchableOpacity style={styles.backupBtn} onPress={handleFullBackup}>
-              <Ionicons name="sync" size={18} color="#fff" style={{ marginRight: 6 }} />
-              <Text style={styles.backupBtnText}>Force Backup Historical Records</Text>
+              <Ionicons name="sync" size={18} color="#fff" />
+              <Text style={styles.backupBtnText}>Force Backup</Text>
             </TouchableOpacity>
-
             <TouchableOpacity style={styles.disconnectBtn} onPress={handleDisconnect}>
-              <Ionicons name="log-out" size={18} color="#ef4444" style={{ marginRight: 6 }} />
-              <Text style={styles.disconnectBtnText}>Disconnect Google Account</Text>
+              <Ionicons name="log-out" size={18} color="#ef4444" />
+              <Text style={styles.disconnectBtnText}>Disconnect</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.disconnectedContainer}>
-            <Ionicons name="logo-google" size={40} color="#ea4335" style={{ marginBottom: 12 }} />
-            <Text style={[styles.promptTitle, isDark ? styles.textDark : styles.textLight]}>
-              Link Google Sheets
-            </Text>
-            <Text style={styles.promptDesc}>
-              Automatically sync your daily sales registers to a spreadsheet in your personal Google Drive for easy access and backup.
-            </Text>
-
-            <TouchableOpacity
-              style={styles.connectBtn}
-              disabled={!request}
-              onPress={() => {
-                promptAsync();
-              }}
-            >
+            <Ionicons name="logo-google" size={36} color="#ea4335" style={{ marginBottom: 10 }} />
+            <Text style={[styles.promptTitle, isDark ? styles.textDark : styles.textLight]}>Link Google Sheets</Text>
+            <Text style={styles.promptDesc}>Sync daily sales to Google Drive for backup.</Text>
+            <TouchableOpacity style={styles.connectBtn} disabled={!request} onPress={() => { promptAsync(); }}>
               <Text style={styles.connectBtnText}>Sign In with Google</Text>
             </TouchableOpacity>
           </View>
         )}
-      </View>
-
-      {/* Advanced / Troubleshooting Section */}
-      <TouchableOpacity
-        style={styles.advancedToggle}
-        onPress={() => setShowAdvanced(!showAdvanced)}
-      >
-        <Text style={[styles.advancedToggleText, isDark ? styles.textDarkSub : styles.textLightSub]}>
-          {showAdvanced ? 'Hide Advanced Options' : 'Show Advanced & Sandbox Sync'}
-        </Text>
-        <Ionicons
-          name={showAdvanced ? 'chevron-up' : 'chevron-down'}
-          size={16}
-          color={isDark ? '#94a3b8' : '#475569'}
-        />
-      </TouchableOpacity>
-
-      {showAdvanced && (
-        <View style={[styles.card, isDark ? styles.cardDark : styles.cardLight]}>
-          <Text style={[styles.advancedTitle, isDark ? styles.textDark : styles.textLight]}>
-            Developer Sandbox
-          </Text>
-          <Text style={styles.advancedDesc}>
-            In development environments, you can manually supply a Google Access Token from OAuth Playground or Cloud Console.
-          </Text>
-
-          <TextInput
-            placeholder="Paste Google Access Token (ya29...)"
-            placeholderTextColor="#888"
-            style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
-            value={manualTokenInput}
-            onChangeText={setManualTokenInput}
-          />
-          <TouchableOpacity style={styles.saveBtn} onPress={handleManualTokenSubmit}>
-            <Text style={styles.saveBtnText}>Connect Using Token</Text>
-          </TouchableOpacity>
-
-          <View style={styles.divider} />
-
-          <Text style={[styles.advancedTitle, isDark ? styles.textDark : styles.textLight]}>
-            Custom Web Client ID
-          </Text>
-          <TextInput
-            placeholder="Google Web Client ID"
-            placeholderTextColor="#888"
-            style={[styles.input, isDark ? styles.inputDark : styles.inputLight]}
-            value={customWebClientId}
-            onChangeText={setCustomWebClientId}
-          />
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSaveCustomWebId}>
-            <Text style={styles.saveBtnText}>Save Web Client ID</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* App Info / Documentation Section */}
-      <View style={styles.sectionHeader}>
-        <Ionicons name="information-circle-outline" size={20} color={isDark ? '#38bdf8' : '#0284c7'} />
-        <Text style={[styles.sectionTitle, isDark ? styles.textDark : styles.textLight]}>App Information</Text>
-      </View>
-
-      <View style={[styles.card, isDark ? styles.cardDark : styles.cardLight]}>
-        <Text style={[styles.infoTitle, isDark ? styles.textDark : styles.textLight]}>
-          Local-First Architecture
-        </Text>
-        <Text style={styles.infoDesc}>
-          Hsabi stores 100% of your products and daily journals on your device locally via SQLite. This means you do not need any internet connection to catalog, manage, count stock, or generate PDF reports. Your records stay yours.
-        </Text>
-
-        <View style={styles.divider} />
-
-        <Text style={[styles.infoTitle, isDark ? styles.textDark : styles.textLight]}>
-          Math & Math Integrity
-        </Text>
-        <Text style={styles.infoDesc}>
-          1. Items Sold is calculated as Opening Stock minus Closing Stock.{'\n'}
-          2. Expected Revenue is Items Sold multiplied by Selling Price.{'\n'}
-          3. Drawer Discrepancy shows the variance between actual physical cash inside the drawer and the theoretical net sales (Expected Revenue minus Expenses). Positive indicates surplus, negative indicates cash shortage.
-        </Text>
       </View>
 
       <View style={{ height: 40 }} />
@@ -573,56 +430,6 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  brandCover: {
-    height: 176,
-    marginBottom: 4,
-    backgroundColor: '#0369a1',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  brandCoverImage: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  brandCoverOverlay: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: 'rgba(15, 23, 42, 0.42)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  brandCoverTitle: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  changeImageLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(15, 23, 42, 0.55)',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  changeImageText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
   },
   bgLight: {
     backgroundColor: '#f8fafc',
@@ -636,36 +443,83 @@ const styles = StyleSheet.create({
   textDark: {
     color: '#f8fafc',
   },
-  textLightSub: {
-    color: '#475569',
+  profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 12,
+    borderRadius: 16,
+    gap: 16,
   },
-  textDarkSub: {
-    color: '#94a3b8',
+  avatarContainer: {
+    position: 'relative',
+  },
+  avatarImage: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+  },
+  avatarPlaceholder: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#0284c7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#0284c7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: Typography.sectionTitle,
+    fontWeight: Typography.bold,
+    marginBottom: 4,
+  },
+  profileDetail: {
+    fontSize: Typography.label,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  editButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#e0f2fe',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingTop: 16,
     paddingBottom: 8,
     gap: 8,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontSize: Typography.sectionTitle,
+    fontWeight: Typography.bold,
   },
   card: {
     borderRadius: 12,
     padding: 16,
     marginHorizontal: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
   },
   cardLight: {
     backgroundColor: '#ffffff',
@@ -678,180 +532,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   profileFieldLabel: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: Typography.label,
+    fontWeight: Typography.semibold,
     marginBottom: 6,
-  },
-  menuCard: {
-    borderRadius: 12,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  menuRow: {
-    minHeight: 54,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#94a3b8',
-  },
-  menuRowLast: {
-    borderBottomWidth: 0,
-  },
-  menuLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  menuTextColumn: {
-    flex: 1,
-    paddingVertical: 8,
-  },
-  menuDescription: {
-    color: '#64748b',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  disconnectedContainer: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  promptTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 6,
-  },
-  promptDesc: {
-    fontSize: 13,
-    color: '#64748b',
-    textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: 20,
-    paddingHorizontal: 12,
-  },
-  connectBtn: {
-    backgroundColor: '#ea4335',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignSelf: 'stretch',
-    alignItems: 'center',
-  },
-  connectBtnText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: 'bold',
-  },
-  profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#0284c7',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  profileInfo: {
-    justifyContent: 'center',
-  },
-  profileName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  profileEmail: {
-    fontSize: 13,
-    color: '#64748b',
-    marginTop: 2,
-  },
-  sheetInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginVertical: 4,
-  },
-  sheetInfoLabel: {
-    fontSize: 13,
-    color: '#64748b',
-  },
-  sheetInfoValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    maxWidth: '60%',
-  },
-  sheetIdText: {
-    fontSize: 11,
-    color: '#64748b',
-    maxWidth: '50%',
-  },
-  actionsDivider: {
-    height: 1,
-    backgroundColor: '#475569',
-    opacity: 0.15,
-    marginVertical: 16,
-  },
-  backupBtn: {
-    backgroundColor: '#0284c7',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  backupBtnText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  disconnectBtn: {
-    borderColor: '#ef4444',
-    borderWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-  },
-  disconnectBtnText: {
-    color: '#ef4444',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  advancedToggle: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 12,
-    gap: 6,
-  },
-  advancedToggleText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  advancedTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    marginBottom: 6,
-  },
-  advancedDesc: {
-    fontSize: 12,
-    color: '#64748b',
-    lineHeight: 16,
-    marginBottom: 12,
   },
   input: {
-    borderRadius: 6,
-    padding: 10,
-    fontSize: 14,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: Typography.body,
     borderWidth: 1,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   inputLight: {
     backgroundColor: '#f1f5f9',
@@ -863,33 +553,59 @@ const styles = StyleSheet.create({
     borderColor: '#334155',
     color: '#f8fafc',
   },
-  saveBtn: {
-    backgroundColor: '#475569',
-    padding: 10,
-    borderRadius: 6,
+  editActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  cancelBtn: {
+    flex: 1,
+    backgroundColor: '#64748b',
+    padding: 12,
+    borderRadius: 8,
     alignItems: 'center',
-    marginBottom: 16,
+  },
+  cancelBtnText: {
+    color: '#fff',
+    fontSize: Typography.label,
+    fontWeight: Typography.bold,
+  },
+  saveBtn: {
+    flex: 1,
+    backgroundColor: '#0284c7',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
   },
   saveBtnText: {
     color: '#fff',
-    fontSize: 13,
-    fontWeight: 'bold',
+    fontSize: Typography.label,
+    fontWeight: Typography.bold,
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#475569',
-    opacity: 0.15,
-    marginVertical: 12,
+  quickAccessGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 16,
+    borderRadius: 12,
   },
-  infoTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    marginBottom: 6,
+  quickAccessItem: {
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
   },
-  infoDesc: {
-    fontSize: 13,
-    color: '#64748b',
-    lineHeight: 18,
+  quickAccessIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quickAccessLabel: {
+    fontSize: Typography.caption,
+    fontWeight: Typography.semibold,
+    textAlign: 'center',
   },
   languageOptions: {
     flexDirection: 'row',
@@ -917,11 +633,97 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   languageButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: Typography.label,
+    fontWeight: Typography.semibold,
     color: '#475569',
   },
   languageButtonTextActive: {
     color: '#0284c7',
+  },
+  syncUserRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  syncAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#0284c7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  syncUserInfo: {
+    flex: 1,
+  },
+  syncUserName: {
+    fontSize: Typography.bodyLarge,
+    fontWeight: Typography.bold,
+  },
+  syncUserEmail: {
+    fontSize: Typography.label,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  backupBtn: {
+    backgroundColor: '#0284c7',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 10,
+    gap: 8,
+  },
+  backupBtnText: {
+    color: '#fff',
+    fontSize: Typography.label,
+    fontWeight: Typography.bold,
+  },
+  disconnectBtn: {
+    borderColor: '#ef4444',
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  disconnectBtnText: {
+    color: '#ef4444',
+    fontSize: Typography.label,
+    fontWeight: Typography.bold,
+  },
+  disconnectedContainer: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  promptTitle: {
+    fontSize: Typography.sectionTitle,
+    fontWeight: Typography.bold,
+    marginBottom: 6,
+  },
+  promptDesc: {
+    fontSize: Typography.label,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 16,
+    paddingHorizontal: 12,
+  },
+  connectBtn: {
+    backgroundColor: '#ea4335',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+  },
+  connectBtnText: {
+    color: '#fff',
+    fontSize: Typography.body,
+    fontWeight: Typography.bold,
   },
 });

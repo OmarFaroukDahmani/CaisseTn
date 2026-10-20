@@ -34,6 +34,7 @@ WebBrowser.maybeCompleteAuthSession();
 export default function ProfileScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim();
   const { t, language, setLanguage, isRTL } = useLanguage();
   const { replayGuide } = useOnboardingGuide();
   const router = useRouter();
@@ -53,7 +54,7 @@ export default function ProfileScreen() {
   const [editCurrency, setEditCurrency] = useState(currencySymbol);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    androidClientId: googleAndroidClientId || 'missing-android-client-id.apps.googleusercontent.com',
     iosClientId: '768910411894-dummyios.apps.googleusercontent.com',
     webClientId: '768910411894-dummyweb.apps.googleusercontent.com',
     scopes: [
@@ -437,7 +438,16 @@ export default function ProfileScreen() {
             <Ionicons name="logo-google" size={36} color="#ea4335" style={{ marginBottom: 10 }} />
             <Text style={[styles.promptTitle, isDark ? styles.textDark : styles.textLight]}>Link Google Sheets</Text>
             <Text style={styles.promptDesc}>Sync daily sales to Google Drive for backup.</Text>
-            <TouchableOpacity style={styles.connectBtn} disabled={!request} onPress={() => { promptAsync(); }}>
+            {!googleAndroidClientId && (
+              <Text style={styles.configWarning}>
+                Google Sign-In is not configured in this build. Set EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID in the EAS build environment and rebuild.
+              </Text>
+            )}
+            <TouchableOpacity
+              style={[styles.connectBtn, (!request || !googleAndroidClientId) && styles.connectBtnDisabled]}
+              disabled={!request || !googleAndroidClientId}
+              onPress={() => { void promptAsync(); }}
+            >
               <Text style={styles.connectBtnText}>Sign In with Google</Text>
             </TouchableOpacity>
           </View>
@@ -742,6 +752,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignSelf: 'stretch',
     alignItems: 'center',
+  },
+  connectBtnDisabled: {
+    opacity: 0.5,
+  },
+  configWarning: {
+    color: '#b45309',
+    fontSize: Typography.label,
+    lineHeight: 18,
+    marginBottom: 12,
+    paddingHorizontal: 8,
+    textAlign: 'center',
   },
   connectBtnText: {
     color: '#fff',

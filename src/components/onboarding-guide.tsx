@@ -18,7 +18,7 @@ const steps: { icon: keyof typeof Ionicons.glyphMap; title: TranslationKey; desc
 ];
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const isDark = useColorScheme() === 'dark';
   const [stepIndex, setStepIndex] = useState(0);
   const [visible, setVisible] = useState(() => getSetting('hasCompletedOnboarding') !== 'true');
@@ -59,7 +59,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         statusBarTranslucent
       >
         <View style={styles.backdrop}>
-          <View style={[styles.card, isDark && styles.cardDark]}>
+          <View style={[styles.card, isDark && styles.cardDark, { direction: isRTL ? 'rtl' : 'ltr' }]}>
             <View style={styles.topRow}>
               <Text style={[styles.stepCount, isDark && styles.secondaryDark]}>
                 {t('tour_step', { current: String(stepIndex + 1), total: String(steps.length) })}
@@ -83,7 +83,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 {stepIndex === steps.length - 1 ? t('finish_tour') : t('next_tour_step')}
               </Text>
               {stepIndex < steps.length - 1 && (
-                <Ionicons name="arrow-forward" size={18} color="#fff" />
+                <Ionicons name={isRTL ? 'arrow-back' : 'arrow-forward'} size={18} color="#fff" />
               )}
             </Pressable>
           </View>

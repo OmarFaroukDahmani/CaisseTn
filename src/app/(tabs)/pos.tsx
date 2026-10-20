@@ -199,8 +199,8 @@ export default function PosScreen() {
 
   if (!shift) {
     return (
-      <ScrollView contentContainerStyle={styles.page}>
-        <View style={[styles.card, isDark && styles.cardDark]}>
+      <ScrollView contentContainerStyle={[styles.page, { direction: isRTL ? 'rtl' : 'ltr' }]}>
+        <View style={[styles.card, isDark && styles.cardDark, { direction: isRTL ? 'rtl' : 'ltr' }]}>
           <Ionicons name="lock-open-outline" size={40} color="#0284c7" />
           <Text style={[styles.title, isDark && styles.textDark]}>{t('open_shift')}</Text>
           <Text style={styles.subtle}>{t('open_shift_desc')}</Text>
@@ -221,7 +221,7 @@ export default function PosScreen() {
   }
 
   return (
-    <View style={[styles.page, isDark && styles.pageDark]}>
+    <View style={[styles.page, isDark && styles.pageDark, { direction: isRTL ? 'rtl' : 'ltr' }]}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={[styles.shiftBar, isDark && styles.cardDark]}>
           <View>
@@ -360,7 +360,7 @@ export default function PosScreen() {
 
       <Modal visible={adjustmentVisible} transparent animationType="slide" onRequestClose={() => setAdjustmentVisible(false)}>
         <View style={styles.overlay}>
-          <View style={[styles.modal, isDark && styles.cardDark]}>
+          <View style={[styles.modal, isDark && styles.cardDark, { direction: isRTL ? 'rtl' : 'ltr' }]}>
             <Text style={[styles.title, isDark && styles.textDark]}>{t('add_cash_adjustment')}</Text>
             <View style={styles.actionRow}>
               {(['PAYOUT', 'DROP'] as const).map((type) => (
@@ -379,7 +379,7 @@ export default function PosScreen() {
 
       <Modal visible={closingVisible} transparent animationType="slide" onRequestClose={() => setClosingVisible(false)}>
         <View style={styles.overlay}>
-          <View style={[styles.modal, isDark && styles.cardDark]}>
+          <View style={[styles.modal, isDark && styles.cardDark, { direction: isRTL ? 'rtl' : 'ltr' }]}>
             <Text style={[styles.title, isDark && styles.textDark]}>{t('close_shift')}</Text>
             <Text style={styles.subtle}>{t('expected_cash')}: {getShiftExpectedCash(shift.id).toFixed(3)} {currency}</Text>
             <TextInput value={countedCash} onChangeText={setCountedCash} placeholder={t('counted_cash')} keyboardType="decimal-pad" style={inputStyle} />
@@ -391,7 +391,7 @@ export default function PosScreen() {
 
       <Modal visible={closingResult !== null} transparent animationType="fade" onRequestClose={() => { setClosingResult(null); setShift(null); }}>
         <View style={styles.overlay}>
-          <View style={[styles.modal, isDark && styles.cardDark]}>
+          <View style={[styles.modal, isDark && styles.cardDark, { direction: isRTL ? 'rtl' : 'ltr' }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <TouchableOpacity
                 onPress={() => { setClosingResult(null); setShift(null); }}
@@ -435,7 +435,7 @@ export default function PosScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flexGrow: 1, backgroundColor: '#f1f5f9', padding: 16 },
+  page: { flexGrow: 1, backgroundColor: '#f8fafc', padding: 16 },
   pageDark: { backgroundColor: '#0f172a' },
   content: { paddingBottom: 32, gap: 14 },
   card: { backgroundColor: '#fff', borderRadius: 14, padding: 16, gap: 12 },

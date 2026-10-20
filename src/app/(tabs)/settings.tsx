@@ -22,6 +22,7 @@ import { getSetting, setSetting, getRegisterHistory, getRegisterDetails } from '
 import {
   isGoogleConnected,
   getGoogleUser,
+  getBackupSpreadsheetUrl,
   disconnectGoogle,
   syncRegisterToGoogle,
 } from '../../services/googleSheets';
@@ -52,7 +53,7 @@ export default function ProfileScreen() {
   const [editCurrency, setEditCurrency] = useState(currencySymbol);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: '768910411894-dummyandroid.apps.googleusercontent.com',
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
     iosClientId: '768910411894-dummyios.apps.googleusercontent.com',
     webClientId: '768910411894-dummyweb.apps.googleusercontent.com',
     scopes: [
@@ -109,6 +110,23 @@ export default function ProfileScreen() {
         },
       },
     ]);
+  };
+
+  const handleOpenGoogleSheet = async () => {
+    const accessToken = getSetting('google_access_token');
+    if (!accessToken) {
+      Alert.alert('Not Connected', 'Please sign in with Google to open the backup spreadsheet.');
+      return;
+    }
+
+    try {
+      const url = await getBackupSpreadsheetUrl(accessToken);
+      refreshSyncStatus();
+      await Linking.openURL(url);
+    } catch (error) {
+      console.error('Failed to open Google Sheets backup:', error);
+      Alert.alert('Unable to Open Google Sheet', 'Please check your Google connection and try again.');
+    }
   };
 
   const handleFullBackup = async () => {
@@ -246,7 +264,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView style={[styles.container, isDark ? styles.bgDark : styles.bgLight]}>
+    <ScrollView style={[styles.container, isDark ? styles.bgDark : styles.bgLight, { direction: isRTL ? 'rtl' : 'ltr' }]}>
       <View style={[styles.profileHeader, isDark ? styles.cardDark : styles.cardLight]}>
         <TouchableOpacity style={styles.avatarContainer} onPress={showImageSourceOptions}>
           {restaurantLogoUri ? (
@@ -378,7 +396,7 @@ export default function ProfileScreen() {
                 {label}
               </Text>
               {language === code && (
-                <Ionicons name="checkmark-circle" size={18} color="#0284c7" style={{ marginLeft: 6 }} />
+                <Ionicons name="checkmark-circle" size={18} color="#0284c7" style={{ marginStart: 6 }} />
               )}
             </TouchableOpacity>
           ))}
@@ -404,6 +422,10 @@ export default function ProfileScreen() {
             <TouchableOpacity style={styles.backupBtn} onPress={handleFullBackup}>
               <Ionicons name="sync" size={18} color="#fff" />
               <Text style={styles.backupBtnText}>Force Backup</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.backupBtn} onPress={handleOpenGoogleSheet}>
+              <Ionicons name="open-outline" size={18} color="#fff" />
+              <Text style={styles.backupBtnText}>Open Google Sheet</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.disconnectBtn} onPress={handleDisconnect}>
               <Ionicons name="log-out" size={18} color="#ef4444" />
@@ -472,7 +494,7 @@ const styles = StyleSheet.create({
   cameraBadge: {
     position: 'absolute',
     bottom: 0,
-    right: 0,
+    end: 0,
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -652,7 +674,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0284c7',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginStart: 12,
   },
   syncUserInfo: {
     flex: 1,

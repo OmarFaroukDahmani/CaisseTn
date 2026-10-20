@@ -10,14 +10,21 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colorScheme === 'dark' ? '#38bdf8' : '#0284c7',
-        tabBarInactiveTintColor: '#888888',
+        tabBarActiveTintColor: colorScheme === 'dark' ? '#38bdf8' : '#0369a1',
+        tabBarInactiveTintColor: colorScheme === 'dark' ? '#94a3b8' : '#64748b',
         tabBarStyle: {
-          paddingBottom: 6,
+          direction: isRTL ? 'rtl' : 'ltr',
+          backgroundColor: colorScheme === 'dark' ? '#0f172a' : '#ffffff',
+          borderTopColor: colorScheme === 'dark' ? '#334155' : '#e2e8f0',
+          paddingBottom: 8,
           paddingTop: 6,
-          height: 60,
+          height: 64,
         },
         headerShown: true,
+        headerStyle: {
+          backgroundColor: colorScheme === 'dark' ? '#0f172a' : '#ffffff',
+        },
+        headerTintColor: colorScheme === 'dark' ? '#f8fafc' : '#0f172a',
         headerTitleStyle: {
           fontWeight: 'bold',
         },
@@ -58,16 +65,17 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="inventory"
+        name="analytics"
         options={{
-          title: t('inventory'),
-          tabBarLabel: t('inventory'),
-          headerTitle: t('inventory'),
+          title: t('analytics_reports'),
+          tabBarLabel: t('analytics_reports'),
+          headerTitle: t('analytics_reports'),
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-            <Ionicons name={focused ? 'cube' : 'cube-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'bar-chart' : 'bar-chart-outline'} size={24} color={color} />
           ),
         }}
       />
+      <Tabs.Screen name="inventory" options={{ href: null }} />
       <Tabs.Screen
         name="settings"
         options={{

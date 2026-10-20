@@ -225,7 +225,7 @@ export default function HistoryScreen() {
   };
 
   return (
-    <View style={[styles.container, isDark ? styles.bgDark : styles.bgLight]}>
+    <View style={[styles.container, isDark ? styles.bgDark : styles.bgLight, { direction: isRTL ? 'rtl' : 'ltr' }]}>
       {history.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="time-outline" size={64} color="#888" style={{ marginBottom: 16 }} />
@@ -249,8 +249,8 @@ export default function HistoryScreen() {
         visible={detailVisible}
         onRequestClose={() => setDetailVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, isDark ? styles.modalContentDark : styles.modalContentLight]}>
+        <View style={[styles.modalOverlay, { direction: isRTL ? 'rtl' : 'ltr' }]}>
+          <View style={[styles.modalContent, isDark ? styles.modalContentDark : styles.modalContentLight, { direction: isRTL ? 'rtl' : 'ltr' }]}>
             <View style={styles.modalHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.modalTitle, isDark ? styles.textDark : styles.textLight]}>
@@ -342,7 +342,7 @@ export default function HistoryScreen() {
                         <Text numberOfLines={1} style={[styles.itemName, isDark ? styles.textDark : styles.textLight]}>
                           {item.product_name}
                         </Text>
-                        <Text style={[styles.itemRevenue, { flexShrink: 0, marginLeft: 8 }]} numberOfLines={1}>
+                        <Text style={[styles.itemRevenue, { flexShrink: 0, marginStart: 8 }]} numberOfLines={1}>
                           {rev.toFixed(3)} {CURRENCY}
                         </Text>
                       </View>
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginStart: 12,
   },
   dayBadgeLight: {
     backgroundColor: '#f1f5f9',
@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
   },
   amountCol: {
     alignItems: 'flex-end',
-    marginRight: 8,
+    marginStart: 8,
   },
   amountLabel: {
     fontSize: 10,
@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontVariant: NumericFontVariant,
     flexShrink: 1,
-    textAlign: 'right',
+    textAlign: 'auto',
   },
   divider: {
     height: 1,
@@ -583,7 +583,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontVariant: NumericFontVariant,
     flexShrink: 1,
-    textAlign: 'right',
+    textAlign: 'auto',
   },
   productHeaderTitle: {
     fontSize: 16,

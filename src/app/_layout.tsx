@@ -1,5 +1,5 @@
 import { DarkTheme, DefaultTheme, ThemeProvider, Stack, useRouter } from 'expo-router';
-import { useColorScheme, I18nManager, TouchableOpacity, View } from 'react-native';
+import { useColorScheme, TouchableOpacity, View } from 'react-native';
 import { useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { initDatabase } from '../services/db';
@@ -10,11 +10,6 @@ function RootLayoutNav() {
   const colorScheme = useColorScheme();
   const { t, isRTL } = useLanguage();
   const router = useRouter();
-
-  useEffect(() => {
-    I18nManager.allowRTL(true);
-    I18nManager.forceRTL(isRTL);
-  }, [isRTL]);
 
   const renderBackButton = () => (
     <TouchableOpacity
@@ -57,7 +52,9 @@ function RootLayoutNav() {
             options={{
               title: t('z_report'),
               headerBackTitle: t('profile'),
-              headerLeft: renderBackButton,
+              headerBackVisible: false,
+              headerLeft: isRTL ? undefined : renderBackButton,
+              headerRight: isRTL ? renderBackButton : undefined,
               gestureEnabled: true,
             }}
           />
@@ -66,7 +63,9 @@ function RootLayoutNav() {
             options={{
               title: t('closed_registers'),
               headerBackTitle: t('profile'),
-              headerLeft: renderBackButton,
+              headerBackVisible: false,
+              headerLeft: isRTL ? undefined : renderBackButton,
+              headerRight: isRTL ? renderBackButton : undefined,
               gestureEnabled: true,
             }}
           />

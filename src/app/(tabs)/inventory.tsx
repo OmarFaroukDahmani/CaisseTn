@@ -33,7 +33,7 @@ type RecipeLine = ReturnType<typeof getRecipeIngredients>[number];
 
 export default function InventoryScreen() {
   const isDark = useColorScheme() === 'dark';
-  const { t, language } = useLanguage();
+  const { t, language, isRTL } = useLanguage();
   const currency = getCurrency(language);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -127,7 +127,7 @@ export default function InventoryScreen() {
   const inputStyle = [styles.input, isDark ? styles.inputDark : styles.inputLight];
 
   return (
-    <View style={[styles.page, isDark && styles.pageDark]}>
+    <View style={[styles.page, isDark && styles.pageDark, { direction: isRTL ? 'rtl' : 'ltr' }]}>
       <FlatList
         data={inventory}
         keyExtractor={(item) => String(item.id)}
@@ -215,7 +215,7 @@ export default function InventoryScreen() {
 
       <Modal visible={itemModalVisible} transparent animationType="slide" onRequestClose={() => setItemModalVisible(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.overlay}>
-          <View style={[styles.modal, isDark && styles.cardDark]}>
+          <View style={[styles.modal, isDark && styles.cardDark, { direction: isRTL ? 'rtl' : 'ltr' }]}>
             <View style={styles.rowBetween}>
               <Text style={[styles.sectionTitle, isDark && styles.textDark]}>{editing ? editing.name : t('add_inventory')}</Text>
               <TouchableOpacity onPress={() => setItemModalVisible(false)}><Ionicons name="close" size={23} color={isDark ? '#fff' : '#0f172a'} /></TouchableOpacity>
@@ -237,7 +237,7 @@ export default function InventoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#f1f5f9' },
+  page: { flex: 1, backgroundColor: '#f8fafc' },
   pageDark: { backgroundColor: '#0f172a' },
   list: { padding: 16, paddingBottom: 32, gap: 10 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 10 },

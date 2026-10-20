@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CashierTn - Gestion de Caisse & POS pour Cafés et Restaurants</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        body {
+            background-color: #F0F6FF;
+            color: #1E293B;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header Navigation */
+        header.navbar {
+            background-color: #FFFFFF;
+            height: 72px;
+            padding: 0 48px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+        }
+
+        .brand-logo-icon {
+            width: 36px;
+            height: 36px;
+            background-color: #1E293B;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .brand-logo-icon svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .brand-name {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #1E293B;
+            letter-spacing: -0.02em;
+        }
+
+        .brand-name span {
+            color: #2563EB;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+            list-style: none;
+        }
+
+        .nav-item a {
+            text-decoration: none;
+            color: #64748B;
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding-bottom: 4px;
+        }
+
+        .nav-item.active a {
+            color: #2563EB;
+            border-bottom: 2px solid #2563EB;
+        }
+
+        .lang-toggle {
+            background-color: #0284C7;
+            color: #FFFFFF;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Main Hero Section */
+        main.hero-container {
+            flex: 1;
+            max-width: 1280px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 60px 48px;
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            gap: 60px;
+            align-items: center;
+        }
+
+        /* Left Hero Content */
+        .hero-text {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .hero-title {
+            font-size: 3.2rem;
+            font-weight: 800;
+            line-height: 1.15;
+            color: #0F172A;
+            letter-spacing: -0.03em;
+        }
+
+        .hero-title .highlight {
+            color: #2563EB;
+            display: block;
+        }
+
+        .hero-description {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            color: #64748B;
+            max-width: 580px;
+            font-weight: 400;
+        }
+
+        .store-badges-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .store-buttons {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .store-btn {
+            background-color: #0F172A;
+            color: #FFFFFF;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-decoration: none;
+            transition: transform 0.2s ease;
+        }
+
+        .store-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .store-btn svg {
+            width: 26px;
+            height: 26px;
+            fill: currentColor;
+        }
+
+        .store-btn-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .store-btn-kicker {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            opacity: 0.8;
+            letter-spacing: 0.05em;
+        }
+
+        .store-btn-label {
+            font-size: 0.95rem;
+            font-weight: 700;
+        }
+
+        .coming-soon-tag {
+            font-size: 0.85rem;
+            color: #64748B;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+
+        /* Right Side Phone Mockup */
+        .phone-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .phone-mockup {
+            width: 320px;
+            height: 640px;
+            background-color: #000000;
+            border-radius: 44px;
+            border: 8px solid #334155;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .phone-camera-island {
+            width: 90px;
+            height: 20px;
+            background-color: #000000;
+            border-radius: 12px;
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+        }
+
+        /* App Mockup UI */
+        .app-screen {
+            background-color: #F8FAFC;
+            width: 100%;
+            height: 100%;
+            padding: 44px 16px 16px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .app-header {
+            background-color: #2563EB;
+            color: #FFFFFF;
+            padding: 14px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .app-card {
+            background-color: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 12px;
+            padding: 14px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .app-card-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #1E293B;
+            margin-bottom: 8px;
+        }
+
+        .app-item-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #64748B;
+            margin-bottom: 6px;
+        }
+
+        .app-total-box {
+            background-color: #E0F2FE;
+            border: 1px solid #BAE6FD;
+            color: #0369A1;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .app-nav-bar {
+            margin-top: auto;
+            background-color: #FFFFFF;
+            border-top: 1px solid #E2E8F0;
+            padding: 10px;
+            display: flex;
+            justify-content: space-around;
+            border-radius: 12px;
+        }
+
+        .app-nav-item {
+            font-size: 0.7rem;
+            color: #64748B;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .app-nav-item.active {
+            color: #2563EB;
+        }
+
+        /* Responsive Layout */
+        @media (max-width: 960px) {
+            header.navbar {
+                padding: 0 24px;
+            }
+
+            main.hero-container {
+                grid-template-columns: 1fr;
+                gap: 40px;
+                padding: 40px 24px;
+                text-align: center;
+            }
+
+            .hero-text {
+                align-items: center;
+            }
+
+            .store-buttons {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Navigation Bar -->
+    <header class="navbar">
+        <a href="#" class="brand-logo">
+            <div class="brand-logo-icon">
+                <!-- CashierTn SVG Icon -->
+                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="15" y="45" width="70" height="35" rx="8" stroke="white" stroke-width="8"/>
+                    <path d="M 40 45 A 20 20 0 0 1 80 45" stroke="white" stroke-width="8" fill="none"/>
+                    <path d="M 52 28 C 52 25, 68 25, 68 28 C 68 35, 52 38, 60 42" stroke="#38BDF8" stroke-width="5" fill="none" stroke-linecap="round"/>
+                    <path d="M 38 62 L 62 62" stroke="white" stroke-width="8" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <span class="brand-name">Caisse<span>Tn</span></span>
+        </a>
+
+        <nav>
+            <ul class="nav-links">
+                <li class="nav-item active">
+                    <a href="#">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+                        Accueil
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <button class="lang-toggle">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+            FR
+        </button>
+    </header>
+
+    <!-- Main Hero Landing Content -->
+    <main class="hero-container">
+        <section class="hero-text">
+            <h1 class="hero-title">
+                Contrôlez Votre Caisse
+                <span class="highlight">Sans Erreur Ni Écart</span>
+            </h1>
+
+            <p class="hero-description">
+                Votre assistant intelligent pour la gestion de caisse, le suivi du stock et le calcul du fond de caisse quotidien. Enregistrez vos ventes et contrôlez le montant exact de votre caisse en toute simplicité.
+            </p>
+
+            <div class="store-badges-wrapper">
+                <div class="store-buttons">
+                    <a href="#" class="store-btn">
+                        <svg viewBox="0 0 24 24"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 3.93c.63-.78 1.05-1.87.93-2.93-.91.04-2.02.61-2.67 1.37-.58.67-1.09 1.77-.95 2.82 1.02.08 2.06-.48 2.69-1.26z"/></svg>
+                        <div class="store-btn-text">
+                            <span class="store-btn-kicker">Download on the</span>
+                            <span class="store-btn-label">App Store</span>
+                        </div>
+                    </a>
+
+                    <a href="#" class="store-btn">
+                        <svg viewBox="0 0 24 24"><path d="M3.609 1.814L13.792 12 3.61 22.186a2.37 2.37 0 0 1-.61-.358V2.172c.176-.13.385-.252.61-.358zm11.296 11.296l2.428 2.429-10.98 6.34 8.552-8.769zM18.82 10.43l3.235 1.87c.603.348.603.92 0 1.268l-3.235 1.87-2.733-2.734 2.733-2.274zm-3.915-1.026L6.353 3.064l10.98 6.34-2.428 2.429z"/></svg>
+                        <div class="store-btn-text">
+                            <span class="store-btn-kicker">GET IT ON</span>
+                            <span class="store-btn-label">Google Play</span>
+                        </div>
+                    </a>
+                </div>
+                <span class="coming-soon-tag">Bientôt Disponible</span>
+            </div>
+        </section>
+
+        <!-- Phone Screen Mockup -->
+        <section class="phone-wrapper">
+            <div class="phone-mockup">
+                <div class="phone-camera-island"></div>
+                <div class="app-screen">
+                    <div class="app-header">
+                        <span>Caisse du Jour</span>
+                        <span>TND</span>
+                    </div>
+
+                    <div class="app-card">
+                        <div class="app-card-title">Fond de Caisse Initial</div>
+                        <div class="app-item-row">
+                            <span>Montant d'ouverture:</span>
+                            <strong>100.000 TND</strong>
+                        </div>
+                    </div>
+
+                    <div class="app-card">
+                        <div class="app-card-title">Ventes & Sorties</div>
+                        <div class="app-item-row">
+                            <span>Ventes Espèces:</span>
+                            <span style="color:#16A34A; font-weight:700;">+ 245.000 TND</span>
+                        </div>
+                        <div class="app-item-row">
+                            <span>Dépenses (Achat Lait):</span>
+                            <span style="color:#DC2626; font-weight:700;">- 15.000 TND</span>
+                        </div>
+                    </div>
+
+                    <div class="app-total-box">
+                        <span>Caisse Théorique:</span>
+                        <span>330.000 TND</span>
+                    </div>
+
+                    <div class="app-nav-bar">
+                        <div class="app-nav-item active">Caisse</div>
+                        <div class="app-nav-item">Ventes</div>
+                        <div class="app-nav-item">Stock</div>
+                        <div class="app-nav-item">Profil</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+</body>
+</html>

@@ -101,7 +101,8 @@ export async function getOrCreateBackupSpreadsheet(accessToken: string): Promise
     const spreadsheetId = createData.spreadsheetId;
 
     // 3. Populate headers in the new spreadsheet
-    const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/'Daily Registers'!A1:H1:append?valueInputOption=USER_ENTERED`;
+    const headerRange = encodeURIComponent("'Daily Registers'!A1:H1");
+    const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${headerRange}:append?valueInputOption=USER_ENTERED`;
     const appendResponse = await fetch(appendUrl, {
       method: 'POST',
       headers: {
@@ -139,6 +140,30 @@ export async function getOrCreateBackupSpreadsheet(accessToken: string): Promise
 }
 
 /**
+ * Return a browser URL for the backup spreadsheet, recreating it if its cached ID is stale.
+ */
+export async function getBackupSpreadsheetUrl(accessToken: string): Promise<string> {
+  let spreadsheetId = await getOrCreateBackupSpreadsheet(accessToken);
+  const response = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}?fields=spreadsheetId`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+
+  if (response.status === 404) {
+    deleteSetting('google_spreadsheet_id');
+    spreadsheetId = await getOrCreateBackupSpreadsheet(accessToken);
+  } else if (!response.ok) {
+    throw new Error(`Spreadsheet lookup failed: ${response.statusText}`);
+  }
+
+  return `https://docs.google.com/spreadsheets/d/${encodeURIComponent(spreadsheetId)}/edit`;
+}
+
+/**
  * Append or update daily register row in the Google Spreadsheet
  */
 export async function syncRegisterToGoogle(
@@ -159,33 +184,44 @@ export async function syncRegisterToGoogle(
   }
 
   try {
-    const spreadsheetId = await getOrCreateBackupSpreadsheet(accessToken);
-    
-    // Append the row
-    const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/'Daily Registers'!A:H:append?valueInputOption=USER_ENTERED`;
-    const response = await fetch(appendUrl, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        range: "'Daily Registers'!A:H",
-        majorDimension: 'ROWS',
-        values: [
-          [
-            registerData.date,
-            registerData.expenses,
-            registerData.actual_cash,
-            registerData.expected_revenue,
-            registerData.gross_profit,
-            registerData.net_profit,
-            registerData.discrepancy,
-            new Date().toLocaleString()
-          ],
-        ],
-      }),
-    });
+    let spreadsheetId = await getOrCreateBackupSpreadsheet(accessToken);
+    const appendRow = (id: string) => {
+      const range = encodeURIComponent("'Daily Registers'!A:H");
+      return fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(id)}/values/${range}:append?valueInputOption=USER_ENTERED`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            range: "'Daily Registers'!A:H",
+            majorDimension: 'ROWS',
+            values: [
+              [
+                registerData.date,
+                registerData.expenses,
+                registerData.actual_cash,
+                registerData.expected_revenue,
+                registerData.gross_profit,
+                registerData.net_profit,
+                registerData.discrepancy,
+                new Date().toLocaleString()
+              ],
+            ],
+          }),
+        }
+      );
+    };
+
+    let response = await appendRow(spreadsheetId);
+
+    if (response.status === 404) {
+      deleteSetting('google_spreadsheet_id');
+      spreadsheetId = await getOrCreateBackupSpreadsheet(accessToken);
+      response = await appendRow(spreadsheetId);
+    }
 
     if (!response.ok) {
       throw new Error(`Sync API append call failed: ${response.statusText}`);

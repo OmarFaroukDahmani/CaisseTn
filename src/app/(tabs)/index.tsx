@@ -489,12 +489,12 @@ export default function DashboardScreen() {
   // -------- RENDER CALENDAR VIEW --------
 
   const renderCalendar = () => (
-    <ScrollView style={[styles.container, isDark ? styles.bgDark : styles.bgLight]}>
+    <ScrollView style={[styles.container, isDark ? styles.bgDark : styles.bgLight, { direction: isRTL ? 'rtl' : 'ltr' }]}>
       {/* Month/Year Navigation */}
       <View style={[styles.calendarHeader, isDark ? styles.cardDark : styles.cardLight]}>
         <View style={styles.navRow}>
           <TouchableOpacity style={styles.navButton} onPress={() => navigateMonth(-1)}>
-            <Ionicons name="chevron-back" size={22} color={isDark ? '#38bdf8' : '#2563eb'} />
+            <Ionicons name={isRTL ? 'chevron-forward' : 'chevron-back'} size={22} color={isDark ? '#38bdf8' : '#2563eb'} />
           </TouchableOpacity>
           
           <View style={styles.monthYearContainer}>
@@ -513,7 +513,7 @@ export default function DashboardScreen() {
           </View>
 
           <TouchableOpacity style={styles.navButton} onPress={() => navigateMonth(1)}>
-            <Ionicons name="chevron-forward" size={22} color={isDark ? '#38bdf8' : '#2563eb'} />
+            <Ionicons name={isRTL ? 'chevron-back' : 'chevron-forward'} size={22} color={isDark ? '#38bdf8' : '#2563eb'} />
           </TouchableOpacity>
         </View>
 
@@ -589,12 +589,12 @@ export default function DashboardScreen() {
   // -------- RENDER DETAIL VIEW --------
 
   const renderDetail = () => (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-      <ScrollView style={[styles.container, isDark ? styles.bgDark : styles.bgLight]}>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, direction: isRTL ? 'rtl' : 'ltr' }}>
+      <ScrollView style={[styles.container, isDark ? styles.bgDark : styles.bgLight, { direction: isRTL ? 'rtl' : 'ltr' }]}>
         {/* Back Button + Header */}
         <View style={[styles.detailHeader, isDark ? styles.headerDark : styles.headerLight]}>
           <TouchableOpacity style={styles.backButton} onPress={backToCalendar}>
-            <Ionicons name="arrow-back" size={20} color={isDark ? '#38bdf8' : '#2563eb'} />
+            <Ionicons name={isRTL ? 'arrow-forward' : 'arrow-back'} size={20} color={isDark ? '#38bdf8' : '#2563eb'} />
             <Text style={[styles.backButtonText, { color: isDark ? '#38bdf8' : '#2563eb' }]}>
               {t('back_to_agenda')}
             </Text>
@@ -610,7 +610,7 @@ export default function DashboardScreen() {
                   size={14} 
                   color="#fff" 
                 />
-                <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold', marginLeft: 4 }}>
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold', marginStart: 4 }}>
                   {register.is_closed === 1 ? t('closed') : t('open')}
                 </Text>
               </TouchableOpacity>
@@ -719,7 +719,7 @@ export default function DashboardScreen() {
                     </View>
 
                     {/* Count Inputs */}
-                    <View style={styles.countInputsRow}>
+                    <View style={[styles.countInputsRow, { direction: 'ltr' }]}>
                       <View style={styles.countInputCol}>
                         <Text style={styles.countLabel}>{t('opening_stock')}</Text>
                         <TextInput
@@ -862,8 +862,8 @@ export default function DashboardScreen() {
 
       {/* Product Management Modal */}
       <Modal visible={showProductModal} animationType="slide" transparent onRequestClose={() => setShowProductModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, isDark ? styles.cardDark : styles.cardLight]}>
+        <View style={[styles.modalOverlay, { direction: isRTL ? 'rtl' : 'ltr' }]}>
+          <View style={[styles.modalContent, isDark ? styles.cardDark : styles.cardLight, { direction: isRTL ? 'rtl' : 'ltr' }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, isDark ? styles.textDark : styles.textLight]}>{t('products')}</Text>
               <TouchableOpacity onPress={() => setShowProductModal(false)}>
@@ -904,13 +904,13 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  bgLight: { backgroundColor: '#f0f4f8' },
-  bgDark: { backgroundColor: '#0b1120' },
+  bgLight: { backgroundColor: '#f8fafc' },
+  bgDark: { backgroundColor: '#0f172a' },
 
-  textLight: { color: '#0f172a', textAlign: 'right' },
-  textDark: { color: '#f1f5f9', textAlign: 'right' },
-  textLightSub: { color: '#475569', textAlign: 'right' },
-  textDarkSub: { color: '#94a3b8', textAlign: 'right' },
+  textLight: { color: '#0f172a', textAlign: 'auto' },
+  textDark: { color: '#f1f5f9', textAlign: 'auto' },
+  textLightSub: { color: '#475569', textAlign: 'auto' },
+  textDarkSub: { color: '#94a3b8', textAlign: 'auto' },
 
   // Calendar Styles
   calendarHeader: { margin: 16, marginBottom: 8, padding: 16, borderRadius: 16 },
@@ -959,7 +959,7 @@ const styles = StyleSheet.create({
 
   dateHeaderCard: { flexDirection: 'row', alignItems: 'center', margin: 16, marginBottom: 8, padding: 16, borderRadius: 14, gap: 12 },
   dateIcon: { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  dateHeaderText: { fontSize: 17, fontWeight: 'bold', textAlign: 'right' },
+  dateHeaderText: { fontSize: 17, fontWeight: 'bold', textAlign: 'auto' },
   statusBadge: { 
     flexDirection: 'row', 
     alignItems: 'center', 
@@ -998,7 +998,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10 
   },
   sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', textAlign: 'right' },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', textAlign: 'auto' },
   statsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   statBadge: { 
     paddingHorizontal: 10, 
@@ -1035,8 +1035,8 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e2e8f0' 
   },
   productInfo: { flex: 1 },
-  productName: { fontSize: 17, fontWeight: 'bold', textAlign: 'right', marginBottom: 2 },
-  productPrice: { fontSize: Typography.caption, color: '#64748b', textAlign: 'right', fontVariant: NumericFontVariant },
+  productName: { fontSize: 17, fontWeight: 'bold', textAlign: 'auto', marginBottom: 2 },
+  productPrice: { fontSize: Typography.caption, color: '#64748b', textAlign: 'auto', fontVariant: NumericFontVariant },
   removeButton: { padding: 4 },
 
   countInputsRow: { 
@@ -1083,7 +1083,7 @@ const styles = StyleSheet.create({
   calcDivider: { width: 1, height: 24, backgroundColor: '#e2e8f0' },
   calcLabel: { fontSize: 11, color: '#64748b', marginBottom: 2 },
   calcValue: { fontSize: 15, fontWeight: 'bold', fontVariant: NumericFontVariant },
-  calcResultText: { fontSize: 13, fontWeight: '600', marginLeft: 6 },
+  calcResultText: { fontSize: 13, fontWeight: '600', marginStart: 6 },
 
   emptyProductsCard: { alignItems: 'center', padding: 24 },
   emptyText: { fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
@@ -1091,7 +1091,7 @@ const styles = StyleSheet.create({
 
   // Financial Section
   cashInputContainer: { marginBottom: 16 },
-  cashInputLabel: { fontSize: Typography.body, fontWeight: Typography.semibold, marginBottom: 8, textAlign: 'right' },
+  cashInputLabel: { fontSize: Typography.body, fontWeight: Typography.semibold, marginBottom: 8, textAlign: 'auto' },
   cashInput: { 
     borderWidth: 2, 
     borderRadius: 12, 
@@ -1108,8 +1108,8 @@ const styles = StyleSheet.create({
 
   financialBreakdown: { gap: 12 },
   financialRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  financialLabel: { fontSize: Typography.body, color: '#64748b', textAlign: 'left', flex: 1 },
-  financialValue: { fontSize: Typography.metric, fontWeight: Typography.semibold, textAlign: 'left', fontVariant: NumericFontVariant },
+  financialLabel: { fontSize: Typography.body, color: '#64748b', textAlign: 'auto', flex: 1 },
+  financialValue: { fontSize: Typography.metric, fontWeight: Typography.semibold, textAlign: 'auto', fontVariant: NumericFontVariant },
 
   discrepancyCard: { 
     backgroundColor: '#f8fafc', 
@@ -1147,9 +1147,9 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '70%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', textAlign: 'right' },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', textAlign: 'auto' },
 
   productToggleRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e2e8f0', gap: 10 },
-  productToggleName: { fontSize: 16, fontWeight: '600', flex: 1, textAlign: 'right' },
-  productTogglePrice: { fontSize: 14, color: '#64748b', textAlign: 'left' },
+  productToggleName: { fontSize: 16, fontWeight: '600', flex: 1, textAlign: 'auto' },
+  productTogglePrice: { fontSize: 14, color: '#64748b', textAlign: 'auto' },
 });

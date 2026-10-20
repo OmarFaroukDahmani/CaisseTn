@@ -55,7 +55,7 @@ export default function AnalyticsScreen() {
     if (!report) return;
     const shop = getShopProfile();
     const rows: (string | number)[][] = [
-      [shop.name || 'Hsabi', ''],
+      [shop.name || 'CashierTn', ''],
       [shop.address, ''],
       [shop.phone, ''],
       [],
@@ -185,7 +185,7 @@ export default function AnalyticsScreen() {
   };
 
   return (
-    <ScrollView style={[styles.page, isDark && styles.pageDark]} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.page, isDark && styles.pageDark, { direction: language === 'ar' ? 'rtl' : 'ltr' }]} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <Text style={[styles.title, isDark && styles.textDark]}>{t('z_report')}</Text>
         <View style={styles.dateControl}>
@@ -286,7 +286,7 @@ function SummaryCard({ title, value, isDark }: { title: string; value: string; i
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#f1f5f9' },
+  page: { flex: 1, backgroundColor: '#f8fafc' },
   pageDark: { backgroundColor: '#0f172a' },
   content: { padding: 16, gap: 12, paddingBottom: 32 },
   header: { gap: 10 },
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   hourLabel: { width: 42, color: '#334155', fontSize: Typography.caption, fontVariant: NumericFontVariant },
   barTrack: { flex: 1, height: 12, backgroundColor: '#e2e8f0', borderRadius: 7, overflow: 'hidden' },
   bar: { height: '100%', backgroundColor: '#0284c7', borderRadius: 7 },
-  chartValue: { width: 92, textAlign: 'right', color: '#334155', fontSize: Typography.caption, fontVariant: NumericFontVariant },
+  chartValue: { width: 92, textAlign: 'auto', color: '#334155', fontSize: Typography.caption, fontVariant: NumericFontVariant },
   exportRow: { flexDirection: 'row', gap: 9 },
   exportButton: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, padding: 12, borderRadius: 9, backgroundColor: '#0369a1' },
   exportText: { color: '#fff', fontWeight: '700', fontSize: 13 },

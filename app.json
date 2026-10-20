@@ -1,22 +1,23 @@
 {
   "expo": {
-    "name": "Hsabi",
-    "slug": "Hsabi",
+    "name": "CashierTn",
+    "slug": "cashiertn",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo.jpg",
-    "scheme": "hsabi",
+    "scheme": "cashiertn",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/images/logo.jpg"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#F5F5F5",
         "foregroundImage": "./assets/images/logo.jpg",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.omar_farouk_dahmani.cashiertn"
     },
     "web": {
       "output": "static",
@@ -27,7 +28,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#F5F5F5",
           "android": {
             "image": "./assets/images/logo.jpg",
             "imageWidth": 76
@@ -53,6 +54,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "980c12c6-b9df-491a-8c8c-2a38cd62d2e0"
+      }
     }
   }
 }

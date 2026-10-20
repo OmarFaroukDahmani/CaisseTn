@@ -56,7 +56,7 @@ function buildShopHeader(options: PdfTemplateOptions): string {
       <div class="shop-info">
         ${logoHtml ? `<div class="logo-container">${logoHtml}</div>` : ''}
         <div class="shop-details">
-          ${shopName ? `<h1 class="shop-name">${escapeHtml(shopName)}</h1>` : '<h1 class="shop-name">Hsabi</h1>'}
+          ${shopName ? `<h1 class="shop-name">${escapeHtml(shopName)}</h1>` : '<h1 class="shop-name">CashierTn</h1>'}
           ${shopAddress ? `<p class="shop-meta">${escapeHtml(shopAddress)}</p>` : ''}
           ${shopPhone ? `<p class="shop-meta">${escapeHtml(shopPhone)}</p>` : ''}
         </div>
@@ -77,7 +77,7 @@ function buildFooter(options: PdfTemplateOptions): string {
     <div class="footer">
       <div class="footer-line"></div>
       <p>${escapeHtml(footerText)}</p>
-      ${shopName ? `<p class="footer-brand">${escapeHtml(shopName)}</p>` : '<p class="footer-brand">Hsabi</p>'}
+      ${shopName ? `<p class="footer-brand">${escapeHtml(shopName)}</p>` : '<p class="footer-brand">CashierTn</p>'}
     </div>
   `;
 }

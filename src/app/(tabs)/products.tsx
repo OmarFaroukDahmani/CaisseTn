@@ -185,7 +185,7 @@ export default function ProductsScreen() {
   };
 
   return (
-    <View style={[styles.container, isDark ? styles.bgDark : styles.bgLight]}>
+    <View style={[styles.container, isDark ? styles.bgDark : styles.bgLight, { direction: isRTL ? 'rtl' : 'ltr' }]}>
       {products.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="cube-outline" size={64} color="#888" style={{ marginBottom: 16 }} />
@@ -216,7 +216,7 @@ export default function ProductsScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
         >
-          <View style={[styles.modalContent, isDark ? styles.modalContentDark : styles.modalContentLight]}>
+          <View style={[styles.modalContent, isDark ? styles.modalContentDark : styles.modalContentLight, { direction: isRTL ? 'rtl' : 'ltr' }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, isDark ? styles.textDark : styles.textLight]}>
                 {editingProduct ? t('edit_product') : t('add_new_product')}
@@ -289,11 +289,11 @@ const styles = StyleSheet.create({
   },
   textLight: {
     color: '#0f172a',
-    textAlign: 'right',
+    textAlign: 'auto',
   },
   textDark: {
     color: '#f8fafc',
-    textAlign: 'right',
+    textAlign: 'auto',
   },
   textLightSub: {
     color: '#475569',
@@ -304,43 +304,43 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: Typography.sectionTitle,
     fontWeight: Typography.bold,
-    textAlign: 'right',
+    textAlign: 'auto',
   },
   priceLabel: {
     fontSize: Typography.caption,
     color: '#475569',
     marginBottom: 4,
-    textAlign: 'right',
+    textAlign: 'auto',
   },
   priceValue: {
     fontSize: Typography.bodyLarge,
     fontWeight: Typography.bold,
-    textAlign: 'right',
+    textAlign: 'auto',
     fontVariant: NumericFontVariant,
   },
   marginValue: {
     fontSize: Typography.bodyLarge,
     fontWeight: Typography.bold,
-    textAlign: 'right',
+    textAlign: 'auto',
     fontVariant: NumericFontVariant,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    textAlign: 'right',
+    textAlign: 'auto',
   },
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 4,
-    textAlign: 'right',
+    textAlign: 'auto',
   },
   input: {
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
     borderWidth: 1,
-    textAlign: 'right',
+    textAlign: 'auto',
   },
   listContent: {
     padding: 16,
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   actionButton: {
-    marginLeft: 16,
+    marginStart: 16,
     padding: 4,
   },
   infoRow: {
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    right: 20,
+    end: 20,
     bottom: 20,
     backgroundColor: '#0284c7',
     width: 56,

@@ -10,6 +10,7 @@ import {
   ScrollView,
   Image,
   Linking,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -35,6 +36,11 @@ export default function ProfileScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim();
+  const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim();
+  const isGoogleConfigured =
+    Platform.OS === 'android'
+      ? !!googleAndroidClientId
+      : !!googleWebClientId;        
   const { t, language, setLanguage, isRTL } = useLanguage();
   const { replayGuide } = useOnboardingGuide();
   const router = useRouter();
@@ -54,9 +60,8 @@ export default function ProfileScreen() {
   const [editCurrency, setEditCurrency] = useState(currencySymbol);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: googleAndroidClientId || 'missing-android-client-id.apps.googleusercontent.com',
-    iosClientId: '768910411894-dummyios.apps.googleusercontent.com',
-    webClientId: '768910411894-dummyweb.apps.googleusercontent.com',
+    androidClientId: googleAndroidClientId,
+    webClientId: googleWebClientId,
     scopes: [
       'https://www.googleapis.com/auth/spreadsheets',
       'https://www.googleapis.com/auth/drive.file'
@@ -438,14 +443,14 @@ export default function ProfileScreen() {
             <Ionicons name="logo-google" size={36} color="#ea4335" style={{ marginBottom: 10 }} />
             <Text style={[styles.promptTitle, isDark ? styles.textDark : styles.textLight]}>Link Google Sheets</Text>
             <Text style={styles.promptDesc}>Sync daily sales to Google Drive for backup.</Text>
-            {!googleAndroidClientId && (
+            {!isGoogleConfigured && (
               <Text style={styles.configWarning}>
-                Google Sign-In is not configured in this build. Set EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID in the EAS build environment and rebuild.
+                Google Sign-In is not configured for this platform. Set the matching EXPO_PUBLIC_GOOGLE_*_CLIENT_ID in the build environment and rebuild.
               </Text>
             )}
             <TouchableOpacity
-              style={[styles.connectBtn, (!request || !googleAndroidClientId) && styles.connectBtnDisabled]}
-              disabled={!request || !googleAndroidClientId}
+              style={[styles.connectBtn, (!request || !isGoogleConfigured) && styles.connectBtnDisabled]}
+              disabled={!request || !isGoogleConfigured}
               onPress={() => { void promptAsync(); }}
             >
               <Text style={styles.connectBtnText}>Sign In with Google</Text>
